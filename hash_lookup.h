@@ -8,7 +8,9 @@
 #define HASH_LOOKUP
 
 #include <cmph.h>
+#include <gmp.h>
 #include <stdlib.h>
+#include "karp_rabin.h"
 
 /*
     typedef struct hash_lookup
@@ -21,8 +23,10 @@
 */
 typedef struct {
     cmph_t *hash;
-    int *values, num;
-    char *keys;
+    int num;
+    char *last_key;
+    int key_size;
+    fingerprint *keys;
 } hash_lookup;
 
 /*
@@ -35,17 +39,18 @@ typedef struct {
     Returns hash_lookup:
         The constructed dictionary
 */
-hash_lookup hashlookup_build(char *key_string, int *values, int num) {
+hash_lookup hashlookup_build(fingerprint *prints, int num, fingerprinter printer) {
     hash_lookup lookup;
     lookup.num = num;
 
     if (num > 1) {
+        int size = printer->p->_mp_size * 8 + 1;
         char **keys = malloc(sizeof(char*) * num);
         int i;
+        int *sizes = malloc(sizeof(int) * num);
         for (i = 0; i < num; i++) {
-            keys[i] = malloc(sizeof(char) * 2);
-            keys[i][0] = key_string[i];
-            keys[i][1] = '\0';
+            keys[i] = malloc(sizeof(char) * size);
+            sizes[i] = gmp_snprintf(keys[i], size, "%Zx", prints[i]->finger);
         }
         cmph_io_adapter_t *source = cmph_io_vector_adapter(keys, num);
         cmph_config_t *config = cmph_config_new(source);
@@ -53,24 +58,22 @@ hash_lookup hashlookup_build(char *key_string, int *values, int num) {
         lookup.hash = cmph_new(config);
         cmph_config_destroy(config);
         cmph_io_vector_adapter_destroy(source);
-        lookup.keys = malloc(num * sizeof(char));
-        lookup.values = malloc(num * sizeof(int));
 
-        unsigned int id;
-        char *key;
+        lookup.keys = malloc(sizeof(fingerprint) * num);
+        int location;
         for (i = 0; i < num; i++) {
-            key = keys[i];
-            id = cmph_search(lookup.hash, key, 1);
-            lookup.keys[id] = key_string[i];
-            lookup.values[id] = values[i];
+            location = cmph_search(lookup.hash, keys[i], sizes[i]);
+            lookup.keys[location] = init_fingerprint();
+            fingerprint_assign(prints[i], lookup.keys[location]);
             free(keys[i]);
         }
         free(keys);
+        lookup.key_size = size;
+        lookup.last_key = malloc(sizeof(char) * size);
     } else if (num == 1) {
-        lookup.keys = malloc(sizeof(char));
-        lookup.keys[0] = key_string[0];
-        lookup.values = malloc(sizeof(int));
-        lookup.values[0] = values[0];
+        lookup.keys = malloc(sizeof(fingerprint));
+        lookup.keys[0] = init_fingerprint();
+        fingerprint_assign(prints[0], lookup.keys[0]);
     }
 
     return lookup;
@@ -86,11 +89,12 @@ hash_lookup hashlookup_build(char *key_string, int *values, int num) {
         values[lookup.hash(key)] if key \in keys
         0 otherwise
 */
-int hashlookup_search(hash_lookup lookup, char key) {
-    if (lookup.num == 0) return 0;
-    if (lookup.num == 1) return (key == lookup.keys[0]) ? lookup.values[0] : 0;
-    int id = cmph_search(lookup.hash, &key, 1);
-    return ((id < lookup.num) && (key == lookup.keys[id])) ? lookup.values[id] : 0;
+int hashlookup_search(hash_lookup lookup, fingerprint key) {
+    if (lookup.num == 0) return -1;
+    if (lookup.num == 1) return (fingerprint_equals(key, lookup.keys[0])) ? 0 : -1;
+    int size = gmp_snprintf(lookup.last_key, lookup.key_size, "%Zx", key->finger);
+    int location =  cmph_search(lookup.hash, lookup.last_key, size);
+    return ((location < lookup.num) && fingerprint_equals(lookup.keys[location], key)) ? location : -1;
 }
 
 /*
@@ -100,9 +104,16 @@ int hashlookup_search(hash_lookup lookup, char key) {
         hash_lookup *lookup - The dictionary to free
 */
 void hashlookup_free(hash_lookup *lookup) {
-    if (lookup->num > 0) {
-        if (lookup->num > 1) cmph_destroy(lookup->hash);
-        free(lookup->values);
+    if (lookup->num > 1) {
+        cmph_destroy(lookup->hash);
+        free(lookup->last_key);
+        int i;
+        for (i = 0; i < lookup->num; i++) {
+            fingerprint_free(lookup->keys[i]);
+        }
+        free(lookup->keys);
+    } else {
+        fingerprint_free(lookup->keys[0]);
         free(lookup->keys);
     }
 }
