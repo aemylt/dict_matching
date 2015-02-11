@@ -112,7 +112,7 @@ void hashlookup_free(hash_lookup *lookup) {
             fingerprint_free(lookup->keys[i]);
         }
         free(lookup->keys);
-    } else {
+    } else if (lookup->num == 1) {
         fingerprint_free(lookup->keys[0]);
         free(lookup->keys);
     }
