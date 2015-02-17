@@ -2,8 +2,6 @@
 #include <string.h>
 #include "dict_matching.h"
 
-#include <stdio.h>
-
 char **P;
 int *m, num_patterns, n, alpha, *correct;
 
@@ -14,7 +12,6 @@ void build_up() {
         P[i] = malloc(sizeof(char) * (m[i] + 1));
     }
     correct = malloc(sizeof(int) * n);
-    printf("Built!\n");
 }
 
 void stream_test(char *T) {
@@ -74,22 +71,23 @@ void test_two_patterns() {
 
 void test_different_lengths() {
     n = 46;
-    num_patterns = 4;
+    num_patterns = 5;
     m = malloc(sizeof(int) * num_patterns);
-    m[0] = 4; m[1] = 4; m[2] = 4; m[3] = 2;
+    m[0] = 4; m[1] = 4; m[2] = 4; m[3] = 2; m[4] = 1;
     build_up();
     strcpy(P[0], "take");
     strcpy(P[1], "fast");
     strcpy(P[2], "sofa");
     strcpy(P[3], "so");
-    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = 3; correct[4]  = -1; correct[5]  = 5;
-    correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = 10; correct[11] = -1;
-    correct[12] = 12; correct[13] = -1; correct[14] = 14; correct[15] = -1; correct[16] = -1; correct[17] = -1;
-    correct[18] = -1; correct[19] = -1; correct[20] = 20; correct[21] = -1; correct[22] = 22; correct[23] = -1;
-    correct[24] = -1; correct[25] = -1; correct[26] = 26; correct[27] = -1; correct[28] = -1; correct[29] = 29;
-    correct[30] = -1; correct[31] = -1; correct[32] = 32; correct[33] = -1; correct[34] = -1; correct[35] = 35;
-    correct[36] = -1; correct[37] = 37; correct[38] = -1; correct[39] = 39; correct[40] = -1; correct[41] = -1;
-    correct[42] = 42; correct[43] = -1; correct[44] = -1; correct[45] = 45;
+    strcpy(P[4], "s");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  =  3; correct[4]  =  4; correct[5]  =  5;
+    correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  =  9; correct[10] = 10; correct[11] = -1;
+    correct[12] = 12; correct[13] = 13; correct[14] = 14; correct[15] = -1; correct[16] = -1; correct[17] = -1;
+    correct[18] = 18; correct[19] = 19; correct[20] = 20; correct[21] = -1; correct[22] = 22; correct[23] = -1;
+    correct[24] = -1; correct[25] = -1; correct[26] = 26; correct[27] = -1; correct[28] = 28; correct[29] = 29;
+    correct[30] = 30; correct[31] = 31; correct[32] = 32; correct[33] = -1; correct[34] = 34; correct[35] = 35;
+    correct[36] = -1; correct[37] = 37; correct[38] = 38; correct[39] = 39; correct[40] = -1; correct[41] = -1;
+    correct[42] = 42; correct[43] = -1; correct[44] = 44; correct[45] = 45;
     stream_test("takeso fasofast fassofatake sosso sofastake so");
     tear_down();
 }
