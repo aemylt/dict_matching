@@ -5,9 +5,10 @@ typedef struct {
     cmph_t *hash;
     int num;
     char *keys;
+    int *end_pattern;
 } first_lookup;
 
-first_lookup firstlookup_build(char *key_string, int num) {
+first_lookup firstlookup_build(char *key_string, int *end_pattern, int num) {
     first_lookup lookup;
     lookup.num = num;
 
@@ -29,32 +30,47 @@ first_lookup firstlookup_build(char *key_string, int num) {
 
         unsigned int id;
         char *key;
+        lookup.end_pattern = malloc(sizeof(int));
         for (i = 0; i < num; i++) {
             key = keys[i];
             id = cmph_search(lookup.hash, key, 1);
             lookup.keys[id] = key_string[i];
+            lookup.end_pattern[id] = end_pattern[i];
             free(keys[i]);
         }
         free(keys);
     } else if (num == 1) {
         lookup.keys = malloc(sizeof(char));
         lookup.keys[0] = key_string[0];
+        lookup.end_pattern = malloc(sizeof(int));
+        lookup.end_pattern[0] = end_pattern[0];
     }
 
     return lookup;
 }
 
-int firstlookup_search(first_lookup lookup, char key) {
+int firstlookup_search(first_lookup lookup, char key, int *match) {
     if (lookup.num == 0) return -1;
-    if (lookup.num == 1) return (key == lookup.keys[0]) ? 0 : -1;
+    if (lookup.num == 1) {
+        if (key == lookup.keys[0]) {
+            *match |= lookup.end_pattern[0];
+            return 0;
+        }
+        return -1;
+    }
     int id = cmph_search(lookup.hash, &key, 1);
-    return ((id < lookup.num) && (key == lookup.keys[id])) ? id : -1;
+    if ((id < lookup.num) && (key == lookup.keys[id])) {
+        *match |= lookup.end_pattern[id];
+        return id;
+    }
+    return -1;
 }
 
 void firstlookup_free(first_lookup *lookup) {
     if (lookup->num > 0) {
         if (lookup->num > 1) cmph_destroy(lookup->hash);
         free(lookup->keys);
+        free(lookup->end_pattern);
     }
 }
 

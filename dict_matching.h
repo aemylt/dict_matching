@@ -64,7 +64,7 @@ typedef struct dict_matcher_t {
     fingerprint tmp;
 
     pattern_row *rows;
-    int num_rows;
+    int num_rows, *end_pattern;
     first_lookup first_round;
     fingerprint T_f;
     fingerprint T_prev;
@@ -77,15 +77,22 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     matcher->T_j = init_fingerprint();
     matcher->tmp = init_fingerprint();
 
-    int m_max = m[0];
+    int m_max = 0;
+    int i;
+    for (i = 0; i < num_patterns; i++) {
+        if (m[i] > m_max) {
+            m_max = m[i];
+        }
+    }
     matcher->num_rows = 0;
     while ((1 << matcher->num_rows) < m_max) {
         matcher->num_rows++;
     }
     matcher->rows = malloc(sizeof(pattern_row) * matcher->num_rows);
 
-    int i, j, k, lookup_size;
+    int j, k, lookup_size;
     char *first_letters = malloc(sizeof(char) * num_patterns);
+    int *end_pattern = malloc(sizeof(int) * num_patterns);
     lookup_size = 0;
     for (j = 0; j < num_patterns; j++) {
         first_letters[lookup_size] = P[j][0];
@@ -93,8 +100,10 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             if (first_letters[k] == first_letters[lookup_size]) break;
         }
         if (k == lookup_size) lookup_size++;
+        if (m[j] == 1) end_pattern[k] = 1;
+        else end_pattern[k] = 0;
     }
-    matcher->first_round = firstlookup_build(first_letters, lookup_size);
+    matcher->first_round = firstlookup_build(first_letters, end_pattern, lookup_size);
     free(first_letters);
     fingerprint *patterns = malloc(sizeof(fingerprint) * num_patterns);
 
@@ -110,13 +119,17 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->rows[i].row_size = 1 << i;
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
-            set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
-            for (k = 0; k < lookup_size; k++) {
-                if (fingerprint_equals(patterns[k], patterns[lookup_size])) break;
+            if (m[j] >= matcher->rows[i].row_size << 1) {
+                set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
+                for (k = 0; k < lookup_size; k++) {
+                    if (fingerprint_equals(patterns[k], patterns[lookup_size])) break;
+                }
+                if (k == lookup_size) lookup_size++;
+                if (m[j] == matcher->rows[i].row_size << 1) end_pattern[k] = 1;
+                else end_pattern[k] = 0;
             }
-            if (k == lookup_size) lookup_size++;
         }
-        matcher->rows[i].lookup = hashlookup_build(patterns, lookup_size, matcher->printer);
+        matcher->rows[i].lookup = hashlookup_build(patterns, end_pattern, lookup_size, matcher->printer);
         matcher->rows[i].num_patterns = lookup_size;
         matcher->rows[i].VOs = malloc(sizeof(viable_occurance*) * lookup_size);
         matcher->rows[i].period = malloc(sizeof(int) * lookup_size);
@@ -140,6 +153,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         fingerprint_free(patterns[i]);
     }
     free(patterns);
+    free(end_pattern);
 
     return matcher;
 }
@@ -150,29 +164,29 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     fingerprint_concat(matcher->printer, matcher->T_f, matcher->T_j, matcher->tmp);
     fingerprint_assign(matcher->tmp, matcher->T_f);
 
-    int i, occurance, match, result = -1;
+    int i, occurance, match, result = 0;
     for (i = matcher->num_rows - 1; i >= 0; i--) {
         occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
         if (occurance) {
             fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
-            match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp);
+            match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, &result);
             if (match != -1) {
                 if (i != matcher->num_rows - 1) {
                     add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
                 }
                 else {
-                    result = j;
+                    result = 1;
                 }
             }
         }
     }
 
-    int first_round = firstlookup_search(matcher->first_round, T_j);
+    int first_round = firstlookup_search(matcher->first_round, T_j, &result);
     if (first_round != -1) {
         add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev, j, first_round, matcher->tmp);
     }
 
-    return result;
+    return (result) ? j : -1;
 }
 
 void dict_matching_free(dict_matcher matcher) {
