@@ -7,29 +7,21 @@
 #include "first_lookup.h"
 
 typedef struct {
-    int location;
-    fingerprint T_f;
-} viable_occurance;
-
-typedef struct {
-    int row_size, num_patterns, *period, *count;
+    int row_size, num_patterns, *period, *count, *first_location;
     hash_lookup lookup;
-    viable_occurance **VOs;
+    fingerprint *first_print;
     fingerprint *period_f;
 } pattern_row;
 
 int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, fingerprint tmp) {
     int i;
     for (i = 0; i < row->num_patterns; i++) {
-        if ((row->count[i]) && (row->VOs[i][0].location == j)) {
-            fingerprint_assign(row->VOs[i][0].T_f, finger);
-            if (row->count[i] <= 2) {
-                fingerprint_assign(row->VOs[i][1].T_f, row->VOs[i][0].T_f);
-                row->VOs[i][0].location = row->VOs[i][1].location;
-            } else {
-                fingerprint_concat(printer, row->VOs[i][0].T_f, row->period_f[i], tmp);
-                fingerprint_assign(tmp, row->VOs[i][0].T_f);
-                row->VOs[i][0].location += row->period[i];
+        if ((row->count[i]) && (row->first_location[i] == j)) {
+            fingerprint_assign(row->first_print[i], finger);
+            if (row->count[i] > 1) {
+                fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
+                fingerprint_assign(tmp, row->first_print[i]);
+                row->first_location[i] += row->period[i];
             }
             row->count[i]--;
             return 1;
@@ -39,22 +31,22 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
 }
 
 void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, int location, int i, fingerprint tmp) {
-    if (row->count[i] < 2) {
-        fingerprint_assign(finger, row->VOs[i][row->count[i]].T_f);
-        row->VOs[i][row->count[i]].location = location + row->row_size;
-        row->count[i]++;
-    } else {
-        if (row->count[i] == 2) {
-            row->period[i] = row->VOs[i][1].location - row->VOs[i][0].location;
-            fingerprint_suffix(printer, row->VOs[i][1].T_f, row->VOs[i][0].T_f, row->period_f[i]);
-        }
-        fingerprint_suffix(printer, finger, row->VOs[i][1].T_f, tmp);
-        int period = location - row->VOs[i][1].location;
-        if ((period == row->period[i]) && (fingerprint_equals(tmp, row->period_f[i]))) {
-            fingerprint_assign(finger, row->VOs[i][1].T_f);
-            row->VOs[i][1].location = location + row->row_size;
+    if (row->count[i]) {
+        if (row->count[i] == 1) {
+            row->period[i] = location - row->first_location[i];
+            fingerprint_suffix(printer, finger, row->first_print[i], row->period_f[i]);
             row->count[i]++;
+        } else {
+            fingerprint_suffix(printer, finger, row->first_print[i], tmp);
+            int period = location - row->first_location[i];
+            if ((period == row->period[i]) && (fingerprint_equals(tmp, row->period_f[i]))) {
+                row->count[i]++;
+            }
         }
+    } else {
+        fingerprint_assign(finger, row->first_print[i]);
+        row->first_location[i] = location + row->row_size;
+        row->count[i] = 1;
     }
 }
 
@@ -131,16 +123,14 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         matcher->rows[i].lookup = hashlookup_build(patterns, end_pattern, lookup_size, matcher->printer);
         matcher->rows[i].num_patterns = lookup_size;
-        matcher->rows[i].VOs = malloc(sizeof(viable_occurance*) * lookup_size);
+        matcher->rows[i].first_print = malloc(sizeof(fingerprint) * lookup_size);
+        matcher->rows[i].first_location = malloc(sizeof(int) * lookup_size);
         matcher->rows[i].period = malloc(sizeof(int) * lookup_size);
         matcher->rows[i].count = malloc(sizeof(int) * lookup_size);
         matcher->rows[i].period_f = malloc(sizeof(fingerprint) * lookup_size);
         for (j = 0; j < lookup_size; j++) {
-            matcher->rows[i].VOs[j] = malloc(sizeof(viable_occurance) << 1);
-            matcher->rows[i].VOs[j][0].T_f = init_fingerprint();
-            matcher->rows[i].VOs[j][0].location = 0;
-            matcher->rows[i].VOs[j][1].T_f = init_fingerprint();
-            matcher->rows[i].VOs[j][1].location = 0;
+            matcher->rows[i].first_print[j] = init_fingerprint();
+            matcher->rows[i].first_location[j] = 0;
             matcher->rows[i].period[j] = 0;
             matcher->rows[i].count[j] = 0;
             matcher->rows[i].period_f[j] = init_fingerprint();
@@ -201,11 +191,11 @@ void dict_matching_free(dict_matcher matcher) {
     int i, j;
     for (i = 0; i < matcher->num_rows; i++) {
         for (j = 0; j < matcher->rows[i].num_patterns; j++) {
-            fingerprint_free(matcher->rows[i].VOs[j][0].T_f);
-            fingerprint_free(matcher->rows[i].VOs[j][1].T_f);
+            fingerprint_free(matcher->rows[i].first_print[j]);
             fingerprint_free(matcher->rows[i].period_f[j]);
         }
-        free(matcher->rows[i].VOs);
+        free(matcher->rows[i].first_print);
+        free(matcher->rows[i].first_location);
         free(matcher->rows[i].period_f);
         free(matcher->rows[i].period);
         free(matcher->rows[i].count);
