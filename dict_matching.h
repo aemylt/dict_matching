@@ -1,6 +1,7 @@
 #ifndef __DICT_MATCHING__
 #define __DICT_MATCHING__
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "karp_rabin.h"
 #include "hash_lookup.h"
@@ -41,6 +42,8 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
             int period = location - row->first_location[i];
             if ((period == row->period[i]) && (fingerprint_equals(tmp, row->period_f[i]))) {
                 row->count[i]++;
+            } else {
+                fprintf(stderr, "Warning: Non-Periodic occurance spotted. Occurance ignored.");
             }
         }
     } else {
