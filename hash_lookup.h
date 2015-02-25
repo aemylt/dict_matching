@@ -61,14 +61,14 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
         cmph_io_vector_adapter_destroy(source);
 
         lookup.keys = malloc(sizeof(fingerprint) * num);
-        lookup.end_pattern = malloc(sizeof(int));
+        if (end_pattern) lookup.end_pattern = malloc(sizeof(int));
         int location;
         for (i = 0; i < num; i++) {
             location = cmph_search(lookup.hash, keys[i], sizes[i]);
             lookup.keys[location] = init_fingerprint();
             fingerprint_assign(prints[i], lookup.keys[location]);
             free(keys[i]);
-            lookup.end_pattern[location] = end_pattern[i];
+            if (end_pattern) lookup.end_pattern[location] = end_pattern[i];
         }
         free(keys);
         lookup.key_size = size;
@@ -77,8 +77,10 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
         lookup.keys = malloc(sizeof(fingerprint));
         lookup.keys[0] = init_fingerprint();
         fingerprint_assign(prints[0], lookup.keys[0]);
-        lookup.end_pattern = malloc(sizeof(int));
-        lookup.end_pattern[0] = end_pattern[0];
+        if (end_pattern) {
+            lookup.end_pattern = malloc(sizeof(int));
+            lookup.end_pattern[0] = end_pattern[0];
+        }
     }
 
     return lookup;
@@ -98,7 +100,7 @@ int hashlookup_search(hash_lookup lookup, fingerprint key, int *match) {
     if (lookup.num == 0) return -1;
     if (lookup.num == 1) {
         if (fingerprint_equals(key, lookup.keys[0])) {
-            *match |= lookup.end_pattern[0];
+            if (lookup.end_pattern) *match |= lookup.end_pattern[0];
             return 0;
         }
         return -1;
@@ -106,7 +108,7 @@ int hashlookup_search(hash_lookup lookup, fingerprint key, int *match) {
     int size = gmp_snprintf(lookup.last_key, lookup.key_size, "%Zx", key->finger);
     int location =  cmph_search(lookup.hash, lookup.last_key, size);
     if ((location < lookup.num) && fingerprint_equals(lookup.keys[location], key)) {
-        *match |= lookup.end_pattern[location];
+        if (lookup.end_pattern) *match |= lookup.end_pattern[location];
         return location;
     }
     return -1;
@@ -130,7 +132,7 @@ void hashlookup_free(hash_lookup *lookup) {
         fingerprint_free(lookup->keys[0]);
     }
     free(lookup->keys);
-    free(lookup->end_pattern);
+    if (lookup->end_pattern) free(lookup->end_pattern);
 }
 
 #endif
