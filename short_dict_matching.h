@@ -11,7 +11,7 @@ int suffix(char *t, int n, char **p, int *m, int num_patterns) {
     int i, j, diff;
     for (i = 0; i < num_patterns; i++) {
         diff = n - m[i];
-        for (j = 0; j < m[i]; j++) {
+        for (j = 0; j < m[i] - diff; j++) {
             if (t[diff + j] != p[i][j]) {
                 break;
             }
@@ -39,6 +39,7 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     int *suffix_match = malloc(sizeof(int) * k_p * k_p);
     for (i = 0; i < k_p * k_p; i++) {
         pattern_prints[i] = init_fingerprint();
+        suffix_match[i] = 0;
     }
 
     int num_prints = 0, x, y;
@@ -51,6 +52,7 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
                 suffix_match[num_prints] = suffix(&p[i][m[i] - (x >> 1)], (x >> 1), p, m, k);
                 for (j = 0; j < num_prints; j++) {
                     if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
+                        suffix_match[j] |= suffix_match[num_prints];
                         break;
                     }
                 }
