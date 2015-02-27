@@ -6,6 +6,12 @@ CMPHLIB=-L/usr/local/lib/libcmph.la -lcmph
 all:
 	$(CC) $(CARGS) dict_matching.c -o dict_matching $(CMPHLIB) $(GMPLIB)
 
+short-dict:
+	$(CC) $(CARGS) short_dict_matching.c -o short_dict_matching $(CMPHLIB) $(GMPLIB)
+
+short-dict-clean:
+	rm short_dict_matching
+
 karp-rabin:
 	$(CC) $(CARGS) karp_rabin.c -o karp_rabin $(GMPLIB)
 
