@@ -11,11 +11,15 @@ int suffix(char *t, int n, char **p, int *m, int num_patterns) {
     int i, j, diff;
     for (i = 0; i < num_patterns; i++) {
         diff = n - m[i];
-        for (j = 0; j < m[i] - diff; j++) {
-            if (t[diff + j] != p[i][j]) {
-                break;
+        if (diff >= 0) {
+            for (j = 0; j < m[i]; j++) {
+                if (t[diff + j] != p[i][j]) {
+                    break;
+                }
             }
-            if (j == m[i]) return 1;
+            if (j == m[i]) {
+                return 1;
+            }
         }
     }
     return 0;
@@ -47,9 +51,9 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
         x = k_p;
         y = m[i];
         while (x != 0) {
-            if (y >= (x >> 1)) {
-                set_fingerprint(printer, &p[i][m[i] - (x >> 1)], (x >> 1), pattern_prints[num_prints]);
-                suffix_match[num_prints] = suffix(&p[i][m[i] - (x >> 1)], (x >> 1), p, m, k);
+            if (y >= x) {
+                set_fingerprint(printer, &p[i][m[i] - x], x, pattern_prints[num_prints]);
+                suffix_match[num_prints] = suffix(&p[i][m[i] - x], x, p, m, k);
                 for (j = 0; j < num_prints; j++) {
                     if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
                         suffix_match[j] |= suffix_match[num_prints];
@@ -60,6 +64,18 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
                     num_prints++;
                 }
                 y -= x >> 1;
+            } else if (y > (x >> 1)) {
+                set_fingerprint(printer, p[i], m[i], pattern_prints[num_prints]);
+                suffix_match[num_prints] = 1;
+                for (j = 0; j < num_prints; j++) {
+                    if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
+                        suffix_match[j] |= suffix_match[num_prints];
+                        break;
+                    }
+                }
+                if (j == num_prints) {
+                    num_prints++;
+                }
             }
             x >>= 1;
         }
