@@ -88,7 +88,23 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     }
     free(pattern_prints);
     free(suffix_match);
+
+    state->start = 0;
     return state;
+}
+
+int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
+    int result = -1, i, found, match = 0;
+    for (i = 0; i < state->k; i++) {
+        fingerprint_suffix(printer, t_f, state->t_prev[i], tmp);
+        found = hashlookup_search(state->lookup, tmp, &match);
+        if ((found != -1) && (match)) {
+            result = j;
+            break;
+        }
+    }
+    fingerprint_assign(t_f, state->t_prev[j % state->k]);
+    return result;
 }
 
 void short_dict_matching_free(short_dict_matcher state) {
