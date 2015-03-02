@@ -61,7 +61,7 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
         cmph_io_vector_adapter_destroy(source);
 
         lookup.keys = malloc(sizeof(fingerprint) * num);
-        if (end_pattern) lookup.end_pattern = malloc(sizeof(int));
+        if (end_pattern) lookup.end_pattern = malloc(sizeof(int) * num);
         int location;
         for (i = 0; i < num; i++) {
             location = cmph_search(lookup.hash, keys[i], sizes[i]);
