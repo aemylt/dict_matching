@@ -1,3 +1,6 @@
+#ifndef __SHORT_DICT_MATCHING__
+#define __SHORT_DICT_MATCHING__
+
 #include "karp_rabin.h"
 #include "hash_lookup.h"
 
@@ -121,3 +124,5 @@ void short_dict_matching_free(short_dict_matcher state) {
     free(state->t_prev);
     free(state);
 }
+
+#endif
