@@ -1,10 +1,12 @@
 #include "karp_rabin.h"
 #include "hash_lookup.h"
 
+#define GET_INDEX(k, m, start) ((start + m) % k)
+
 typedef struct short_dict_matcher_t {
     hash_lookup lookup;
     fingerprint *t_prev;
-    int k, start;
+    int k;
 } *short_dict_matcher;
 
 int suffix(char *t, int n, char **p, int *m, int num_patterns) {
@@ -48,12 +50,12 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
 
     int num_prints = 0, x, y;
     for (i = 0; i < k; i++) {
-        x = k_p;
+        x = k_p >> 1;
         y = m[i];
         while (x != 0) {
             if (y >= x) {
-                set_fingerprint(printer, &p[i][m[i] - x], x, pattern_prints[num_prints]);
-                suffix_match[num_prints] = suffix(&p[i][m[i] - x], x, p, m, k);
+                set_fingerprint(printer, &p[i][x], m[i] - x, pattern_prints[num_prints]);
+                suffix_match[num_prints] = suffix(&p[i][x], m[i] - x, p, m, k);
                 for (j = 0; j < num_prints; j++) {
                     if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
                         suffix_match[j] |= suffix_match[num_prints];
@@ -64,20 +66,19 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
                     num_prints++;
                 }
                 y -= x >> 1;
-            } else if (y > (x >> 1)) {
-                set_fingerprint(printer, p[i], m[i], pattern_prints[num_prints]);
-                suffix_match[num_prints] = 1;
-                for (j = 0; j < num_prints; j++) {
-                    if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
-                        suffix_match[j] |= suffix_match[num_prints];
-                        break;
-                    }
-                }
-                if (j == num_prints) {
-                    num_prints++;
-                }
             }
             x >>= 1;
+        }
+        set_fingerprint(printer, p[i], m[i], pattern_prints[num_prints]);
+        suffix_match[num_prints] = 1;
+        for (j = 0; j < num_prints; j++) {
+            if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
+                suffix_match[j] |= suffix_match[num_prints];
+                break;
+            }
+        }
+        if (j == num_prints) {
+            num_prints++;
         }
     }
 
@@ -89,20 +90,25 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     free(pattern_prints);
     free(suffix_match);
 
-    state->start = 0;
     return state;
 }
 
 int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
-    int result = -1, i, found, match = 0;
-    for (i = 0; i < state->k; i++) {
-        fingerprint_suffix(printer, t_f, state->t_prev[i], tmp);
+    int result = -1, found, match = 0, start = 0, end = state->k, middle;
+    while (start < end) {
+        middle = (start + end) / 2;
+        fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
         found = hashlookup_search(state->lookup, tmp, &match);
-        if ((found != -1) && (match)) {
+        if (match) {
             result = j;
             break;
+        } else if (found == -1) {
+            start = middle + 1;
+        } else {
+            end = middle;
         }
     }
+
     fingerprint_assign(t_f, state->t_prev[j % state->k]);
     return result;
 }
