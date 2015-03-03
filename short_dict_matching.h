@@ -58,8 +58,8 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
             y = m[i];
             while (x != 0) {
                 if (y >= x) {
-                    set_fingerprint(printer, &p[i][x], m[i] - x, pattern_prints[num_prints]);
-                    suffix_match[num_prints] = suffix(&p[i][x], m[i] - x, p, m, k);
+                    set_fingerprint(printer, &p[i][y - x], m[i] - y + x, pattern_prints[num_prints]);
+                    suffix_match[num_prints] = suffix(&p[i][y - x], m[i] - y + x, p, m, k);
                     for (j = 0; j < num_prints; j++) {
                         if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
                             suffix_match[j] |= suffix_match[num_prints];
@@ -69,7 +69,7 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
                     if (j == num_prints) {
                         num_prints++;
                     }
-                    y -= x >> 1;
+                    y -= x;
                 }
                 x >>= 1;
             }

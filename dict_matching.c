@@ -131,11 +131,30 @@ void test_long_and_short() {
     tear_down();
 }
 
+void test_all_patterns() {
+    n = 7;
+    num_patterns = 7;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4; m[4] = 5; m[5] = 6; m[6] = 7;
+    build_up();
+    strcpy(P[0], "a");
+    strcpy(P[1], "ab");
+    strcpy(P[2], "abc");
+    strcpy(P[3], "abcd");
+    strcpy(P[4], "abcde");
+    strcpy(P[5], "abcdef");
+    strcpy(P[6], "abcdefg");
+    correct[0]  = 0; correct[1]  = 1; correct[2]  = 2; correct[3]  = 3; correct[4]  = 4; correct[5]  = 5; correct[6]  = 6;
+    stream_test("abcdefg");
+    tear_down();
+}
+
 int main(void) {
     test_single_pattern();
     test_two_patterns();
     test_different_lengths();
     test_seven_patterns();
     test_long_and_short();
+    test_all_patterns();
     return 0;
 }
