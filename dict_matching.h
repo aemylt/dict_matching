@@ -95,13 +95,15 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         int *end_pattern = malloc(sizeof(int) * num_patterns);
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
-            first_letters[lookup_size] = P[j][0];
-            for (k = 0; k < lookup_size; k++) {
-                if (first_letters[k] == first_letters[lookup_size]) break;
+            if (m[j] > num_patterns) {
+                first_letters[lookup_size] = P[j][0];
+                for (k = 0; k < lookup_size; k++) {
+                    if (first_letters[k] == first_letters[lookup_size]) break;
+                }
+                if (k == lookup_size) lookup_size++;
+                if (m[j] == 1) end_pattern[k] = 1;
+                else end_pattern[k] = 0;
             }
-            if (k == lookup_size) lookup_size++;
-            if (m[j] == 1) end_pattern[k] = 1;
-            else end_pattern[k] = 0;
         }
         matcher->first_round = firstlookup_build(first_letters, end_pattern, lookup_size);
         free(first_letters);
@@ -190,7 +192,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
 
     short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
 
-    return (long_result || short_result != -1) ? j : -1;
+    return (long_result || (short_result != -1)) ? j : -1;
 }
 
 void dict_matching_free(dict_matcher matcher) {
