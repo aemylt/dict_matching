@@ -53,35 +53,37 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
 
     int num_prints = 0, x, y;
     for (i = 0; i < k; i++) {
-        x = k_p >> 1;
-        y = m[i];
-        while (x != 0) {
-            if (y >= x) {
-                set_fingerprint(printer, &p[i][x], m[i] - x, pattern_prints[num_prints]);
-                suffix_match[num_prints] = suffix(&p[i][x], m[i] - x, p, m, k);
-                for (j = 0; j < num_prints; j++) {
-                    if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
-                        suffix_match[j] |= suffix_match[num_prints];
-                        break;
+        if (m[i] <= k) {
+            x = k_p >> 1;
+            y = m[i];
+            while (x != 0) {
+                if (y >= x) {
+                    set_fingerprint(printer, &p[i][x], m[i] - x, pattern_prints[num_prints]);
+                    suffix_match[num_prints] = suffix(&p[i][x], m[i] - x, p, m, k);
+                    for (j = 0; j < num_prints; j++) {
+                        if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
+                            suffix_match[j] |= suffix_match[num_prints];
+                            break;
+                        }
                     }
+                    if (j == num_prints) {
+                        num_prints++;
+                    }
+                    y -= x >> 1;
                 }
-                if (j == num_prints) {
-                    num_prints++;
+                x >>= 1;
+            }
+            set_fingerprint(printer, p[i], m[i], pattern_prints[num_prints]);
+            suffix_match[num_prints] = 1;
+            for (j = 0; j < num_prints; j++) {
+                if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
+                    suffix_match[j] |= suffix_match[num_prints];
+                    break;
                 }
-                y -= x >> 1;
             }
-            x >>= 1;
-        }
-        set_fingerprint(printer, p[i], m[i], pattern_prints[num_prints]);
-        suffix_match[num_prints] = 1;
-        for (j = 0; j < num_prints; j++) {
-            if (fingerprint_equals(pattern_prints[num_prints], pattern_prints[j])) {
-                suffix_match[j] |= suffix_match[num_prints];
-                break;
+            if (j == num_prints) {
+                num_prints++;
             }
-        }
-        if (j == num_prints) {
-            num_prints++;
         }
     }
 

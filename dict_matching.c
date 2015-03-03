@@ -15,7 +15,7 @@ void build_up() {
 }
 
 void stream_test(char *T) {
-    dict_matcher matcher = dict_matching_build(P, m, num_patterns, n, alpha);
+    dict_matcher matcher = dict_matching_build(P, m, num_patterns, 100, alpha);
     int i;
     for (i = 0; i < n; i++) {
         assert(dict_matching_stream(matcher, T[i], i) == correct[i]);
@@ -92,9 +92,28 @@ void test_different_lengths() {
     tear_down();
 }
 
+void test_seven_patterns() {
+    n = 6;
+    num_patterns = 7;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 2; m[4] = 3; m[5] = 1; m[6] = 3;
+    build_up();
+    strcpy(P[0], "a");
+    strcpy(P[1], "ab");
+    strcpy(P[2], "bab");
+    strcpy(P[3], "bc");
+    strcpy(P[4], "bca");
+    strcpy(P[5], "c");
+    strcpy(P[6], "caa");
+    correct[0]  = 0; correct[1]  = 1; correct[2]  = 2; correct[3]  = 3; correct[4]  = 4; correct[5]  = 5;
+    stream_test("abccab");
+    tear_down();
+}
+
 int main(void) {
     test_single_pattern();
     test_two_patterns();
     test_different_lengths();
+    test_seven_patterns();
     return 0;
 }
