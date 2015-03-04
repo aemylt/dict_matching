@@ -90,7 +90,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         matcher->rows = malloc(sizeof(pattern_row) * matcher->num_rows);
 
-        int j, k, lookup_size;
+        int j, k, lookup_size, old_lookup_size;
         char *first_letters = malloc(sizeof(char) * num_patterns);
         int *end_pattern = malloc(sizeof(int) * num_patterns);
         lookup_size = 0;
@@ -114,6 +114,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             patterns[i] = init_fingerprint();
         }
         i = 0;
+        old_lookup_size = lookup_size;
         lookup_size = 0;
         while ((1 << (i + 1)) <= m_max) {
             matcher->rows[i].row_size = 1 << i;
@@ -121,28 +122,32 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             for (j = 0; j < num_patterns; j++) {
                 if ((m[j] > num_patterns) && (m[j] >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
+                    if (m[j] == matcher->rows[i].row_size << 1) end_pattern[lookup_size] = 1;
+                    else end_pattern[lookup_size] = 0;
                     for (k = 0; k < lookup_size; k++) {
-                        if (fingerprint_equals(patterns[k], patterns[lookup_size])) break;
+                        if (fingerprint_equals(patterns[k], patterns[lookup_size])) {
+                            end_pattern[k] |= end_pattern[lookup_size];
+                            break;
+                        }
                     }
                     if (k == lookup_size) lookup_size++;
-                    if (m[j] == matcher->rows[i].row_size << 1) end_pattern[k] = 1;
-                    else end_pattern[k] = 0;
                 }
             }
             matcher->rows[i].lookup = hashlookup_build(patterns, end_pattern, lookup_size, matcher->printer);
-            matcher->rows[i].num_patterns = lookup_size;
-            matcher->rows[i].first_print = malloc(sizeof(fingerprint) * lookup_size);
-            matcher->rows[i].first_location = malloc(sizeof(int) * lookup_size);
-            matcher->rows[i].period = malloc(sizeof(int) * lookup_size);
-            matcher->rows[i].count = malloc(sizeof(int) * lookup_size);
-            matcher->rows[i].period_f = malloc(sizeof(fingerprint) * lookup_size);
-            for (j = 0; j < lookup_size; j++) {
+            matcher->rows[i].num_patterns = old_lookup_size;
+            matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
+            matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
+            matcher->rows[i].period = malloc(sizeof(int) * old_lookup_size);
+            matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
+            matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
+            for (j = 0; j < old_lookup_size; j++) {
                 matcher->rows[i].first_print[j] = init_fingerprint();
                 matcher->rows[i].first_location[j] = 0;
                 matcher->rows[i].period[j] = 0;
                 matcher->rows[i].count[j] = 0;
                 matcher->rows[i].period_f[j] = init_fingerprint();
             }
+            old_lookup_size = lookup_size;
             i++;
         }
 
