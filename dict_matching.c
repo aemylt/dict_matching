@@ -50,6 +50,23 @@ void test_single_pattern() {
     tear_down();
 }
 
+void test_single_repetitive_pattern() {
+    m = malloc(sizeof(int));
+    m[0] = 8;
+    num_patterns = 1;
+    n = 30;
+    alpha = 0;
+    build_up();
+    strcpy(P[0], "aaaaaaaa");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  = -1; correct[5]  = -1;
+    correct[6]  = -1; correct[7]  =  7; correct[8]  =  8; correct[9]  =  9; correct[10] = 10; correct[11] = 11;
+    correct[12] = 12; correct[13] = 13; correct[14] = 14; correct[15] = 15; correct[16] = 16; correct[17] = 17;
+    correct[18] = 18; correct[19] = 19; correct[20] = 20; correct[21] = 21; correct[22] = 22; correct[23] = 23;
+    correct[24] = 24; correct[25] = 25; correct[26] = 26; correct[27] = 27; correct[28] = 28; correct[29] = 29;
+    stream_test("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    tear_down();
+}
+
 void test_two_patterns() {
     m = malloc(sizeof(int) * 2);
     m[0] = 8;
@@ -183,6 +200,7 @@ void test_all_short_patterns_plus_powers_of_two() {
 
 int main(void) {
     test_single_pattern();
+    test_single_repetitive_pattern();
     test_two_patterns();
     test_different_lengths();
     test_seven_patterns();

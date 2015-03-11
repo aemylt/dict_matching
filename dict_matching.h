@@ -9,16 +9,16 @@
 #include "short_dict_matching.h"
 
 typedef struct {
-    int row_size, num_patterns, *period, *count, *first_location;
+    int row_size, num_patterns, *period, *count, *first_location, *last_location;
     hash_lookup lookup;
-    fingerprint *first_print;
+    fingerprint *first_print, *last_print;
     fingerprint *period_f;
 } pattern_row;
 
 int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, fingerprint tmp) {
     int i;
     for (i = 0; i < row->num_patterns; i++) {
-        if ((row->count[i]) && (row->first_location[i] == j)) {
+        if ((row->count[i]) && (row->first_location[i] + row->row_size == j)) {
             fingerprint_assign(row->first_print[i], finger);
             if (row->count[i] > 1) {
                 fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
@@ -37,11 +37,15 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
         if (row->count[i] == 1) {
             row->period[i] = location - row->first_location[i];
             fingerprint_suffix(printer, finger, row->first_print[i], row->period_f[i]);
-            row->count[i]++;
+            row->last_location[i] = location;
+            fingerprint_assign(finger, row->last_print[i]);
+            row->count[i] = 2;
         } else {
-            fingerprint_suffix(printer, finger, row->first_print[i], tmp);
-            int period = location - row->first_location[i];
+            fingerprint_suffix(printer, finger, row->last_print[i], tmp);
+            int period = location - row->last_location[i];
             if ((period == row->period[i]) && (fingerprint_equals(tmp, row->period_f[i]))) {
+                row->last_location[i] = location;
+                fingerprint_assign(finger, row->last_print[i]);
                 row->count[i]++;
             } else {
                 fprintf(stderr, "Warning: Non-Periodic occurance spotted. Occurance ignored.");
@@ -49,7 +53,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
         }
     } else {
         fingerprint_assign(finger, row->first_print[i]);
-        row->first_location[i] = location + row->row_size;
+        row->first_location[i] = location;
         row->count[i] = 1;
     }
 }
@@ -137,12 +141,16 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].num_patterns = old_lookup_size;
             matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
             matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
+            matcher->rows[i].last_print = malloc(sizeof(fingerprint) * old_lookup_size);
+            matcher->rows[i].last_location = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].period = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
             for (j = 0; j < old_lookup_size; j++) {
                 matcher->rows[i].first_print[j] = init_fingerprint();
                 matcher->rows[i].first_location[j] = 0;
+                matcher->rows[i].last_print[j] = init_fingerprint();
+                matcher->rows[i].last_location[j] = 0;
                 matcher->rows[i].period[j] = 0;
                 matcher->rows[i].count[j] = 0;
                 matcher->rows[i].period_f[j] = init_fingerprint();
@@ -214,10 +222,13 @@ void dict_matching_free(dict_matcher matcher) {
         for (i = 0; i < matcher->num_rows; i++) {
             for (j = 0; j < matcher->rows[i].num_patterns; j++) {
                 fingerprint_free(matcher->rows[i].first_print[j]);
+                fingerprint_free(matcher->rows[i].last_print[j]);
                 fingerprint_free(matcher->rows[i].period_f[j]);
             }
             free(matcher->rows[i].first_print);
             free(matcher->rows[i].first_location);
+            free(matcher->rows[i].last_print);
+            free(matcher->rows[i].last_location);
             free(matcher->rows[i].period_f);
             free(matcher->rows[i].period);
             free(matcher->rows[i].count);
