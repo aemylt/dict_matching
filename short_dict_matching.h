@@ -9,6 +9,7 @@
 typedef struct short_dict_matcher_t {
     hash_lookup lookup;
     fingerprint *t_prev;
+    int num_prints;
     int k;
 } *short_dict_matcher;
 
@@ -87,7 +88,8 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
         }
     }
 
-    state->lookup = hashlookup_build(pattern_prints, suffix_match, num_prints, printer);
+    state->num_prints = num_prints;
+    if (num_prints) state->lookup = hashlookup_build(pattern_prints, suffix_match, num_prints, printer);
 
     for (i = 0; i < k_p * k_p; i++) {
         fingerprint_free(pattern_prints[i]);
@@ -100,17 +102,19 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
 
 int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
     int result = -1, found, match = 0, start = 0, end = state->k, middle;
-    while (start < end) {
-        middle = (start + end) / 2;
-        fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
-        found = hashlookup_search(state->lookup, tmp, &match);
-        if (match) {
-            result = j;
-            break;
-        } else if (found == -1) {
-            start = middle + 1;
-        } else {
-            end = middle;
+    if (state->num_prints) {
+        while (start < end) {
+            middle = (start + end) / 2;
+            fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
+            found = hashlookup_search(state->lookup, tmp, &match);
+            if (match) {
+                result = j;
+                break;
+            } else if (found == -1) {
+                start = middle + 1;
+            } else {
+                end = middle;
+            }
         }
     }
 
@@ -124,6 +128,7 @@ void short_dict_matching_free(short_dict_matcher state) {
         fingerprint_free(state->t_prev[i]);
     }
     free(state->t_prev);
+    if (state->num_prints) hashlookup_free(&state->lookup);
     free(state);
 }
 
