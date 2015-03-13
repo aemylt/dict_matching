@@ -62,6 +62,7 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
 
         lookup.keys = malloc(sizeof(fingerprint) * num);
         if (end_pattern) lookup.end_pattern = malloc(sizeof(int) * num);
+        else lookup.end_pattern = NULL;
         int location;
         for (i = 0; i < num; i++) {
             location = cmph_search(lookup.hash, keys[i], sizes[i]);
@@ -80,6 +81,8 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
         if (end_pattern) {
             lookup.end_pattern = malloc(sizeof(int));
             lookup.end_pattern[0] = end_pattern[0];
+        } else {
+            lookup.end_pattern = NULL;
         }
     }
 
