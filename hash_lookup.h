@@ -103,7 +103,7 @@ int hashlookup_search(hash_lookup lookup, fingerprint key, int *match) {
     if (lookup.num == 0) return -1;
     if (lookup.num == 1) {
         if (fingerprint_equals(key, lookup.keys[0])) {
-            if (lookup.end_pattern) *match |= lookup.end_pattern[0];
+            if (lookup.end_pattern && match) *match |= lookup.end_pattern[0];
             return 0;
         }
         return -1;
@@ -111,7 +111,7 @@ int hashlookup_search(hash_lookup lookup, fingerprint key, int *match) {
     int size = gmp_snprintf(lookup.last_key, lookup.key_size, "%Zx", key->finger);
     int location =  cmph_search(lookup.hash, lookup.last_key, size);
     if ((location < lookup.num) && fingerprint_equals(lookup.keys[location], key)) {
-        if (lookup.end_pattern) *match |= lookup.end_pattern[location];
+        if (lookup.end_pattern && match) *match |= lookup.end_pattern[location];
         return location;
     }
     return -1;
