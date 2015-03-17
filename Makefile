@@ -12,6 +12,12 @@ short-dict:
 short-dict-clean:
 	rm short_dict_matching
 
+periodic-dict:
+	$(CC) $(CARGS) periodic_dict_matching.c -o periodic_dict_matching $(CMPHLIB) $(GMPLIB)
+
+periodic-dict-clean:
+	rm periodic_dict_matching
+
 karp-rabin:
 	$(CC) $(CARGS) karp_rabin.c -o karp_rabin $(GMPLIB)
 
