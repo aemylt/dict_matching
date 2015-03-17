@@ -80,10 +80,10 @@ void test_substrings() {
     n = 16;
     num_patterns = 2;
     m = malloc(sizeof(int) * num_patterns);
-    m[0] = 5; m[1] = 6;
+    m[0] = 6; m[1] = 5;
     build_up();
-    strcpy(P[0], "ababa");
-    strcpy(P[1], "bababa");
+    strcpy(P[0], "bababa");
+    strcpy(P[1], "ababa");
     rho[0] = 2; rho[1] = 2;
     correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  =  5;
     correct[6]  =  6; correct[7]  =  7; correct[8]  =  8; correct[9]  =  9; correct[10] = -1; correct[11] = -1;

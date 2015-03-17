@@ -63,7 +63,7 @@ periodic_dict_matching_state periodic_dict_matching_build(char **P, int *m, int 
         lengths[num_tails] = m[i];
         for (j = 0; j < num_tails; j++) {
             if (fingerprint_equals(prints[j], prints[num_tails])) {
-                if (lengths[j] < lengths[num_tails]) {
+                if (lengths[num_tails] < lengths[j]) {
                     locations[j] = locations[num_tails];
                     lengths[j] = lengths[num_tails];
                 }
