@@ -91,6 +91,41 @@ periodic_dict_matching_state periodic_dict_matching_build(char **P, int *m, int 
     return state;
 }
 
+int periodic_dict_matching_stream(periodic_dict_matching_state state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
+    fingerprint_suffix(printer, t_f, state->t_prev[j % state->k], tmp);
+    int head_location = hashlookup_search(state->head, tmp, NULL);
+    int head_pointer = 0;
+    int tail_location = hashlookup_search(state->tail, tmp, &head_pointer);
+    if (head_location != -1) {
+        int period = j - state->last_location[head_location];
+        fingerprint_suffix(printer, t_f, state->last_print[head_location], tmp);
+        if ((period == state->period[head_location]) && (fingerprint_equals(tmp, state->period_f[head_location]))) {
+            state->count[head_location]++;
+            state->last_location[head_location] = j;
+            fingerprint_assign(t_f, state->last_print[head_location]);
+        } else {
+            state->count[head_location] = 0;
+        }
+        if (!state->count[head_location]) {
+            state->first_location[head_location] = j;
+            fingerprint_assign(t_f, state->first_print[head_location]);
+            state->last_location[head_location] = j;
+            fingerprint_assign(t_f, state->last_print[head_location]);
+            state->count[head_location] = state->k / state->period[head_pointer];
+        }
+    }
+    int result = -1;
+    if (tail_location != -1) {
+        int num_occurances = state->m[tail_location] / state->period[head_pointer];
+        int last_occurance = j - (state->m[tail_location] % state->period[head_pointer]);
+        if ((num_occurances <= state->count[head_pointer]) && (last_occurance == state->last_location[head_pointer])) {
+            result = j;
+        }
+    }
+    fingerprint_assign(t_f, state->t_prev[j % state->k]);
+    return result;
+}
+
 void periodic_dict_matching_free(periodic_dict_matching_state state) {
     int i;
     for (i = 0; i < state->k; i++) {
