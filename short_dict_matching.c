@@ -28,6 +28,10 @@ void stream_test(char *T, int n, char **P, int *m, int num_patterns, int *correc
         fingerprint_assign(tmp, t_f);
         assert(correct[i] == short_dict_matching_stream(state, printer, t_f, tmp, i));
     }
+    fingerprint_free(t_f);
+    fingerprint_free(t_j);
+    fingerprint_free(tmp);
+    fingerprinter_free(printer);
     short_dict_matching_free(state);
 }
 
