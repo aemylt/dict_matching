@@ -29,7 +29,10 @@ void stream_test(char *T) {
         fingerprint_assign(tmp, t_f);
         assert(correct[i] == periodic_dict_matching_stream(state, printer, t_f, tmp, i));
     }
-    set_fingerprint(printer, T, n, t_j);
+    fingerprint_free(t_f);
+    fingerprint_free(t_j);
+    fingerprint_free(tmp);
+    fingerprinter_free(printer);
     periodic_dict_matching_free(state);
 }
 
