@@ -107,18 +107,17 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     int *periods = malloc(sizeof(int) * num_patterns);
     get_periods(P, m, num_patterns, periods);
 
-    int m_max = 0, p_max = -1;
+    int m_max = 0;
     int i;
     for (i = 0; i < num_patterns; i++) {
-        if (periods[i] >= p_max) {
-            p_max = periods[i];
+        if (((periods[i] == -1) && (m[i] > num_patterns)) || (periods[i] > num_patterns)) {
             if (m[i] > m_max) {
                 m_max = m[i];
             }
         }
     }
     matcher->num_rows = 0;
-    if (((p_max == -1) && (m_max > num_patterns)) || (p_max > num_patterns)) {
+    if (m_max > num_patterns) {
         while ((1 << matcher->num_rows) < m_max) {
             matcher->num_rows++;
         }
