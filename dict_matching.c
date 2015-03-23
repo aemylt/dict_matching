@@ -198,6 +198,65 @@ void test_all_short_patterns_plus_powers_of_two() {
     tear_down();
 }
 
+void test_periodic_pattern() {
+    n = 16;
+    num_patterns = 1;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 5;
+    build_up();
+    strcpy(P[0], "aaaaa");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  =  5;
+    correct[6]  =  6; correct[7]  =  7; correct[8]  =  8; correct[9]  =  9; correct[10] = -1; correct[11] = -1;
+    correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = 15;
+    stream_test("aaaaaaaaaabaaaaa");
+    tear_down();
+}
+
+void test_two_periodic_patterns() {
+    n = 16;
+    num_patterns = 2;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 5; m[1] = 6;
+    build_up();
+    strcpy(P[0], "aaaaa");
+    strcpy(P[1], "bababa");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  = -1; correct[5]  =  5;
+    correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  =  9; correct[10] = -1; correct[11] = -1;
+    correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = 15;
+    stream_test("bababaaaaabababa");
+    tear_down();
+}
+
+void test_periodic_substrings() {
+    n = 16;
+    num_patterns = 2;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 6; m[1] = 5;
+    build_up();
+    strcpy(P[0], "bababa");
+    strcpy(P[1], "ababa");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  = -1; correct[5]  =  5;
+    correct[6]  = -1; correct[7]  =  7; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
+    correct[12] = -1; correct[13] = -1; correct[14] = 14; correct[15] = -1;
+    stream_test("bababababbababab");
+    tear_down();
+}
+
+void test_periodic_matching_prefix() {
+    n = 16;
+    num_patterns = 2;
+    m = malloc(sizeof(int) * num_patterns);
+    m[0] = 7; m[1] = 6;
+    build_up();
+    strcpy(P[0], "abababa");
+    strcpy(P[1], "ababab");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  = -1; correct[5]  =  5;
+    correct[6]  =  6; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
+    correct[12] = -1; correct[13] = -1; correct[14] = 14; correct[15] = 15;
+    stream_test("abababaaaabababa");
+    tear_down();
+}
+
 int main(void) {
     test_single_pattern();
     test_single_repetitive_pattern();
@@ -207,5 +266,9 @@ int main(void) {
     test_long_and_short();
     test_all_short_patterns();
     test_all_short_patterns_plus_powers_of_two();
+    test_periodic_pattern();
+    test_two_periodic_patterns();
+    test_periodic_substrings();
+    test_periodic_matching_prefix();
     return 0;
 }

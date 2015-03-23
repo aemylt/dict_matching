@@ -88,11 +88,11 @@ void get_periods(char **P, int *m, int num_patterns, int *period) {
         failure[0] = -1;
         k = -1;
         for (j = 1; j < m[i]; j++) {
-            while (k > -1 && P[k + 1] != P[j]) k = failure[k];
-            if (P[k + 1] == P[j]) k++;
+            while (k > -1 && P[i][k + 1] != P[i][j]) k = failure[k];
+            if (P[i][k + 1] == P[i][j]) k++;
             failure[j] = k;
         }
-        period[i] = failure[m[i] - 1];
+        period[i] = m[i] - failure[m[i] - 1] - 1;
     }
     free(failure);
 }
@@ -110,7 +110,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     int m_max = 0;
     int i;
     for (i = 0; i < num_patterns; i++) {
-        if (((periods[i] == -1) && (m[i] > num_patterns)) || (periods[i] > num_patterns)) {
+        if (periods[i] > num_patterns) {
             if (m[i] > m_max) {
                 m_max = m[i];
             }
@@ -128,7 +128,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         int *end_pattern = malloc(sizeof(int) * num_patterns);
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
-            if (((periods[j] == -1) && (m[j] > num_patterns)) || (periods[j] > num_patterns)) {
+            if (periods[j] > num_patterns) {
                 first_letters[lookup_size] = P[j][0];
                 for (k = 0; k < lookup_size; k++) {
                     if (first_letters[k] == first_letters[lookup_size]) break;
@@ -153,7 +153,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].row_size = 1 << i;
             lookup_size = 0;
             for (j = 0; j < num_patterns; j++) {
-                if ((((periods[j] == -1) && (m[j] > num_patterns)) || (periods[j] > num_patterns)) && (m[j] >= matcher->rows[i].row_size << 1)) {
+                if ((periods[j] > num_patterns) && (m[j] >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
                     if (m[j] == matcher->rows[i].row_size << 1) end_pattern[lookup_size] = 1;
                     else end_pattern[lookup_size] = 0;
