@@ -7,6 +7,7 @@
 #include "hash_lookup.h"
 #include "first_lookup.h"
 #include "short_dict_matching.h"
+#include "periodic_dict_matching.h"
 
 typedef struct {
     int row_size, num_patterns, *period, *count, *first_location, *last_location;
@@ -64,6 +65,7 @@ typedef struct dict_matcher_t {
     fingerprint tmp;
 
     short_dict_matcher short_matcher;
+    periodic_dict_matcher periodic_matcher;
 
     pattern_row *rows;
     int num_rows, *end_pattern;
@@ -73,6 +75,28 @@ typedef struct dict_matcher_t {
     fingerprint current;
 } *dict_matcher;
 
+void get_periods(char **P, int *m, int num_patterns, int *period) {
+    int i, j, k;
+    int *failure;
+    failure = malloc(sizeof(int));
+    int failure_size = 1;
+    for (i = 0; i < num_patterns; i++) {
+        if (m[i] > failure_size) {
+            failure = realloc(failure, sizeof(int) * m[i]);
+            failure_size = m[i];
+        }
+        failure[0] = -1;
+        k = -1;
+        for (j = 1; j < m[i]; j++) {
+            while (k > -1 && P[k + 1] != P[j]) k = failure[k];
+            if (P[k + 1] == P[j]) k++;
+            failure[j] = k;
+        }
+        period[i] = failure[m[i] - 1];
+    }
+    free(failure);
+}
+
 dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int alpha) {
     dict_matcher matcher = malloc(sizeof(struct dict_matcher_t));
     matcher->printer = fingerprinter_build(n, alpha);
@@ -80,15 +104,21 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     matcher->tmp = init_fingerprint();
     matcher->T_f = init_fingerprint();
 
-    int m_max = 0;
+    int *periods = malloc(sizeof(int) * num_patterns);
+    get_periods(P, m, num_patterns, periods);
+
+    int m_max = 0, p_max = -1;
     int i;
     for (i = 0; i < num_patterns; i++) {
-        if (m[i] > m_max) {
-            m_max = m[i];
+        if (periods[i] >= p_max) {
+            p_max = periods[i];
+            if (m[i] > m_max) {
+                m_max = m[i];
+            }
         }
     }
     matcher->num_rows = 0;
-    if (m_max > num_patterns) {
+    if (((p_max == -1) && (m_max > num_patterns)) || (p_max > num_patterns)) {
         while ((1 << matcher->num_rows) < m_max) {
             matcher->num_rows++;
         }
@@ -99,7 +129,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         int *end_pattern = malloc(sizeof(int) * num_patterns);
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
-            if (m[j] > num_patterns) {
+            if (((periods[j] == -1) && (m[j] > num_patterns)) || (periods[j] > num_patterns)) {
                 first_letters[lookup_size] = P[j][0];
                 for (k = 0; k < lookup_size; k++) {
                     if (first_letters[k] == first_letters[lookup_size]) break;
@@ -124,7 +154,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].row_size = 1 << i;
             lookup_size = 0;
             for (j = 0; j < num_patterns; j++) {
-                if ((m[j] > num_patterns) && (m[j] >= matcher->rows[i].row_size << 1)) {
+                if ((((periods[j] == -1) && (m[j] > num_patterns)) || (periods[j] > num_patterns)) && (m[j] >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
                     if (m[j] == matcher->rows[i].row_size << 1) end_pattern[lookup_size] = 1;
                     else end_pattern[lookup_size] = 0;
@@ -167,6 +197,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     }
 
     matcher->short_matcher = short_dict_matching_build(num_patterns, matcher->printer, P, m);
+    matcher->periodic_matcher = periodic_dict_matching_build(P, m, periods, num_patterns, matcher->printer);
 
     return matcher;
 }
@@ -177,7 +208,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     fingerprint_concat(matcher->printer, matcher->T_f, matcher->T_j, matcher->tmp);
     fingerprint_assign(matcher->tmp, matcher->T_f);
 
-    int long_result = 0, short_result;
+    int long_result = 0, short_result, periodic_result;
 
     if (matcher->num_rows) {
         int i, occurance, match;
@@ -204,8 +235,9 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     }
 
     short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
+    periodic_result = periodic_dict_matching_stream(matcher->periodic_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
 
-    return (long_result || (short_result != -1)) ? j : -1;
+    return (long_result || (short_result != -1) || (periodic_result != -1)) ? j : -1;
 }
 
 void dict_matching_free(dict_matcher matcher) {
@@ -239,6 +271,7 @@ void dict_matching_free(dict_matcher matcher) {
     }
 
     short_dict_matching_free(matcher->short_matcher);
+    periodic_dict_matching_free(matcher->periodic_matcher);
 
     free(matcher);
 }

@@ -4,20 +4,20 @@
 #include "karp_rabin.h"
 #include "hash_lookup.h"
 
-typedef struct periodic_dict_matching_state_t {
+typedef struct periodic_dict_matcher_t {
     int num_heads, num_tails, k, *period, *count, *first_location, *last_location, *m;
     hash_lookup head, tail;
     fingerprint *first_print;
     fingerprint *last_print;
     fingerprint *period_f;
     fingerprint *t_prev;
-} *periodic_dict_matching_state;
+} *periodic_dict_matcher;
 
-periodic_dict_matching_state periodic_dict_matching_build(char **P, int *m, int *period, int k, fingerprinter printer) {
-    periodic_dict_matching_state state = malloc(sizeof(struct periodic_dict_matching_state_t));
+periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period, int k, fingerprinter printer) {
+    periodic_dict_matcher state = malloc(sizeof(struct periodic_dict_matcher_t));
     state->k = k;
     state->t_prev = malloc(sizeof(fingerprint) * k);
-    int i, j, num_heads = 0, num_tails = 0;
+    int i, j, num_heads = 0, num_tails = 0, location;
     fingerprint *prints = malloc(sizeof(fingerprint) * k);
     fingerprint *period_prints = malloc(sizeof(fingerprint) * k);
     int *periods = malloc(sizeof(int) * k);
@@ -25,62 +25,69 @@ periodic_dict_matching_state periodic_dict_matching_build(char **P, int *m, int 
         state->t_prev[i] = init_fingerprint();
         prints[i] = init_fingerprint();
         period_prints[i] = init_fingerprint();
-        set_fingerprint(printer, P[i], k, prints[num_heads]);
-        set_fingerprint(printer, P[i], period[i], period_prints[num_heads]);
-        periods[num_heads] = period[i];
-        for (j = 0; j < num_heads; j++) {
-            if (fingerprint_equals(prints[j], prints[num_heads])) break;
+        if ((period[i] > -1) && (period[i] <= k) && (m[i] > k)) {
+            set_fingerprint(printer, P[i], k, prints[num_heads]);
+            set_fingerprint(printer, P[i], period[i], period_prints[num_heads]);
+            periods[num_heads] = period[i];
+            for (j = 0; j < num_heads; j++) {
+                if (fingerprint_equals(prints[j], prints[num_heads])) break;
+            }
+            if (j == num_heads) num_heads++;
         }
-        if (j == num_heads) num_heads++;
     }
-    state->head = hashlookup_build(prints, NULL, num_heads, printer);
     state->num_heads = num_heads;
-    state->period = malloc(sizeof(int) * num_heads);
-    state->count = malloc(sizeof(int) * num_heads);
-    state->first_location = malloc(sizeof(int) * num_heads);
-    state->last_location = malloc(sizeof(int) * num_heads);
-    state->first_print = malloc(sizeof(fingerprint) * num_heads);
-    state->last_print = malloc(sizeof(fingerprint) * num_heads);
-    state->period_f = malloc(sizeof(fingerprint) * num_heads);
-    int location;
-    for (i = 0; i < num_heads; i++) {
-        location = hashlookup_search(state->head, prints[i], NULL);
-        state->period[location] = periods[i];
-        state->count[location] = 0;
-        state->first_location[location] = 0;
-        state->last_location[location] = 0;
-        state->first_print[location] = init_fingerprint();
-        state->last_print[location] = init_fingerprint();
-        state->period_f[location] = init_fingerprint();
-        fingerprint_assign(period_prints[i], state->period_f[location]);
+    state->head = hashlookup_build(prints, NULL, num_heads, printer);
+    if (num_heads) {
+        state->period = malloc(sizeof(int) * num_heads);
+        state->count = malloc(sizeof(int) * num_heads);
+        state->first_location = malloc(sizeof(int) * num_heads);
+        state->last_location = malloc(sizeof(int) * num_heads);
+        state->first_print = malloc(sizeof(fingerprint) * num_heads);
+        state->last_print = malloc(sizeof(fingerprint) * num_heads);
+        state->period_f = malloc(sizeof(fingerprint) * num_heads);
+        for (i = 0; i < num_heads; i++) {
+            location = hashlookup_search(state->head, prints[i], NULL);
+            state->period[location] = periods[i];
+            state->count[location] = 0;
+            state->first_location[location] = 0;
+            state->last_location[location] = 0;
+            state->first_print[location] = init_fingerprint();
+            state->last_print[location] = init_fingerprint();
+            state->period_f[location] = init_fingerprint();
+            fingerprint_assign(period_prints[i], state->period_f[location]);
+        }
     }
     int *locations = malloc(sizeof(int) * k);
     int *lengths = malloc(sizeof(int) * k);
     for (i = 0; i < k; i++) {
-        set_fingerprint(printer, &P[i][m[i] - k], k, prints[num_tails]);
-        set_fingerprint(printer, P[i], k, period_prints[0]);
-        locations[num_tails] = hashlookup_search(state->head, period_prints[0], NULL);
-        lengths[num_tails] = m[i];
-        for (j = 0; j < num_tails; j++) {
-            if (fingerprint_equals(prints[j], prints[num_tails])) {
-                if (lengths[num_tails] < lengths[j]) {
-                    locations[j] = locations[num_tails];
-                    lengths[j] = lengths[num_tails];
+        if ((period[i] > -1) && (period[i] <= k) && (m[i] > k)) {
+            set_fingerprint(printer, &P[i][m[i] - k], k, prints[num_tails]);
+            set_fingerprint(printer, P[i], k, period_prints[0]);
+            locations[num_tails] = hashlookup_search(state->head, period_prints[0], NULL);
+            lengths[num_tails] = m[i];
+            for (j = 0; j < num_tails; j++) {
+                if (fingerprint_equals(prints[j], prints[num_tails])) {
+                    if (lengths[num_tails] < lengths[j]) {
+                        locations[j] = locations[num_tails];
+                        lengths[j] = lengths[num_tails];
+                    }
+                    break;
                 }
-                break;
             }
+            if (j == num_tails) num_tails++;
         }
-        if (j == num_tails) num_tails++;
     }
+    state->num_tails = num_tails;
     state->tail = hashlookup_build(prints, locations, num_tails, printer);
-    state->m = malloc(sizeof(int) * num_tails);
-    for (i = 0; i < num_tails; i++) {
-        location = hashlookup_search(state->tail, prints[i], NULL);
-        state->m[location] = lengths[i];
+    if (num_tails) {
+        state->m = malloc(sizeof(int) * num_tails);
+        for (i = 0; i < num_tails; i++) {
+            location = hashlookup_search(state->tail, prints[i], NULL);
+            state->m[location] = lengths[i];
+        }
     }
     free(locations);
     free(lengths);
-    state->num_tails = num_tails;
     for (i = 0; i < k; i++) {
         fingerprint_free(prints[i]);
         fingerprint_free(period_prints[i]);
@@ -91,7 +98,7 @@ periodic_dict_matching_state periodic_dict_matching_build(char **P, int *m, int 
     return state;
 }
 
-int periodic_dict_matching_stream(periodic_dict_matching_state state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
+int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
     fingerprint_suffix(printer, t_f, state->t_prev[j % state->k], tmp);
     int head_location = hashlookup_search(state->head, tmp, NULL);
     int head_pointer = 0;
@@ -126,7 +133,7 @@ int periodic_dict_matching_stream(periodic_dict_matching_state state, fingerprin
     return result;
 }
 
-void periodic_dict_matching_free(periodic_dict_matching_state state) {
+void periodic_dict_matching_free(periodic_dict_matcher state) {
     int i;
     for (i = 0; i < state->k; i++) {
         fingerprint_free(state->t_prev[i]);
@@ -137,16 +144,20 @@ void periodic_dict_matching_free(periodic_dict_matching_state state) {
         fingerprint_free(state->last_print[i]);
         fingerprint_free(state->period_f[i]);
     }
-    free(state->first_print);
-    free(state->last_print);
-    free(state->period_f);
-    free(state->period);
-    free(state->count);
-    free(state->first_location);
-    free(state->last_location);
-    free(state->m);
-    hashlookup_free(&state->head);
-    hashlookup_free(&state->tail);
+    if (state->num_heads) {
+        free(state->first_print);
+        free(state->last_print);
+        free(state->period_f);
+        free(state->period);
+        free(state->count);
+        free(state->first_location);
+        free(state->last_location);
+        hashlookup_free(&state->head);
+    }
+    if (state->num_tails) {
+        free(state->m);
+        hashlookup_free(&state->tail);
+    }
     free(state);
 }
 

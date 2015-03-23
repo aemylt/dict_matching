@@ -20,7 +20,7 @@ void build_up() {
 
 void stream_test(char *T) {
     fingerprinter printer = fingerprinter_build(100, 0);
-    periodic_dict_matching_state state = periodic_dict_matching_build(P, m, rho, num_patterns, printer);
+    periodic_dict_matcher state = periodic_dict_matching_build(P, m, rho, num_patterns, printer);
     int i;
     fingerprint t_f = init_fingerprint(), t_j = init_fingerprint(), tmp = init_fingerprint();
     for (i = 0; i < n; i++) {
