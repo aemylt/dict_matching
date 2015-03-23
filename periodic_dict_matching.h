@@ -25,9 +25,9 @@ periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period
         state->t_prev[i] = init_fingerprint();
         prints[i] = init_fingerprint();
         period_prints[i] = init_fingerprint();
-        if ((period[i] > -1) && (period[i] <= k) && (m[i] > k)) {
+        if ((period[i] <= k) && (m[i] > k)) {
             set_fingerprint(printer, P[i], k, prints[num_heads]);
-            set_fingerprint(printer, P[i], period[i], period_prints[num_heads]);
+            set_fingerprint(printer, &P[i][k - period[i]], period[i], period_prints[num_heads]);
             periods[num_heads] = period[i];
             for (j = 0; j < num_heads; j++) {
                 if (fingerprint_equals(prints[j], prints[num_heads])) break;
@@ -60,7 +60,7 @@ periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period
     int *locations = malloc(sizeof(int) * k);
     int *lengths = malloc(sizeof(int) * k);
     for (i = 0; i < k; i++) {
-        if ((period[i] > -1) && (period[i] <= k) && (m[i] > k)) {
+        if ((period[i] <= k) && (m[i] > k)) {
             set_fingerprint(printer, &P[i][m[i] - k], k, prints[num_tails]);
             set_fingerprint(printer, P[i], k, period_prints[0]);
             locations[num_tails] = hashlookup_search(state->head, period_prints[0], NULL);
@@ -124,7 +124,7 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
     int result = -1;
     if (tail_location != -1) {
         int num_occurances = state->m[tail_location] / state->period[head_pointer];
-        int last_occurance = j - (state->m[tail_location] % state->period[head_pointer]);
+        int last_occurance = j - (state->m[tail_location] - state->k) % state->period[head_pointer];
         if ((num_occurances <= state->count[head_pointer]) && (last_occurance == state->last_location[head_pointer])) {
             result = j;
         }

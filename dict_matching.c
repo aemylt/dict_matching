@@ -257,6 +257,31 @@ void test_periodic_matching_prefix() {
     tear_down();
 }
 
+void test_long_periodic_and_short() {
+    m = malloc(sizeof(int) * 4);
+    m[0] = 8;
+    m[1] = 8;
+    m[2] = 3;
+    m[3] = 7;
+    num_patterns = 4;
+    n = 37;
+    alpha = 0;
+    build_up();
+    strcpy(P[0], "ababbabb");
+    strcpy(P[1], "ababbabc");
+    strcpy(P[2], "abb");
+    strcpy(P[3], "abcabca");
+    correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  = -1;
+    correct[6]  = -1; correct[7]  =  7; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
+    correct[12] = 12; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
+    correct[18] = -1; correct[19] = -1; correct[20] = 20; correct[21] = -1; correct[22] = -1; correct[23] = -1;
+    correct[24] = -1; correct[25] = -1; correct[26] = 26; correct[27] = -1; correct[28] = -1; correct[29] = 29;
+    correct[30] = -1; correct[31] = -1; correct[32] = -1; correct[33] = -1; correct[34] = -1; correct[35] = -1;
+    correct[36] = 36;
+    stream_test("ababbabcababbbbbababbaababbabbabcabca");
+    tear_down();
+}
+
 int main(void) {
     test_single_pattern();
     test_single_repetitive_pattern();
@@ -270,5 +295,6 @@ int main(void) {
     test_two_periodic_patterns();
     test_periodic_substrings();
     test_periodic_matching_prefix();
+    test_long_periodic_and_short();
     return 0;
 }
