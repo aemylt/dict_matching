@@ -123,7 +123,7 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
     }
     int result = -1;
     if (tail_location != -1) {
-        int num_occurances = state->m[tail_location] / state->period[head_pointer];
+        int num_occurances = (state->m[tail_location] - (state->k % state->period[head_pointer])) / state->period[head_pointer];
         int last_occurance = j - (state->m[tail_location] - state->k) % state->period[head_pointer];
         if ((num_occurances <= state->count[head_pointer]) && (last_occurance == state->last_location[head_pointer])) {
             result = j;
