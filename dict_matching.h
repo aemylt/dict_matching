@@ -8,27 +8,36 @@
 #include "first_lookup.h"
 #include "short_dict_matching.h"
 #include "periodic_dict_matching.h"
+#include "rbtree.c"
 
 typedef struct {
     int row_size, num_patterns, *period, *count, *first_location, *last_location;
     hash_lookup lookup;
     fingerprint *first_print, *last_print;
     fingerprint *period_f;
+    rbtree next_progression;
 } pattern_row;
 
+int compare_int(void *leftp, void *rightp) {
+    int left = (int)leftp;
+    int right = (int)rightp;
+    if (left < right) return -1;
+    else if (left > right) return 1;
+    else return 0;
+}
+
 int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, fingerprint tmp) {
-    int i;
-    for (i = 0; i < row->num_patterns; i++) {
-        if ((row->count[i]) && (row->first_location[i] + row->row_size == j)) {
-            fingerprint_assign(row->first_print[i], finger);
-            if (row->count[i] > 1) {
-                fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
-                fingerprint_assign(tmp, row->first_print[i]);
-                row->first_location[i] += row->period[i];
-            }
-            row->count[i]--;
-            return 1;
+    int i = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size, (void*)-1, compare_int);
+    if (i != -1) {
+        fingerprint_assign(row->first_print[i], finger);
+        if (row->count[i] > 1) {
+            fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
+            fingerprint_assign(tmp, row->first_print[i]);
+            row->first_location[i] += row->period[i];
+            rbtree_insert(row->next_progression, (void*)j + row->period[i], (void*)i, compare_int);
         }
+        row->count[i]--;
+        return 1;
     }
     return 0;
 }
@@ -41,6 +50,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
             row->last_location[i] = location;
             fingerprint_assign(finger, row->last_print[i]);
             row->count[i] = 2;
+            rbtree_insert(row->next_progression, (void*)location, (void*)i, compare_int);
         } else {
             fingerprint_suffix(printer, finger, row->last_print[i], tmp);
             int period = location - row->last_location[i];
@@ -48,6 +58,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
                 row->last_location[i] = location;
                 fingerprint_assign(finger, row->last_print[i]);
                 row->count[i]++;
+                rbtree_insert(row->next_progression, (void*)location, (void*)i, compare_int);
             } else {
                 fprintf(stderr, "Warning: Non-Periodic occurance spotted. Occurance ignored.");
             }
@@ -56,6 +67,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
         fingerprint_assign(finger, row->first_print[i]);
         row->first_location[i] = location;
         row->count[i] = 1;
+        rbtree_insert(row->next_progression, (void*)location, (void*)i, compare_int);
     }
 }
 
@@ -175,6 +187,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].period = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
+            matcher->rows[i].next_progression = rbtree_create();
             for (j = 0; j < old_lookup_size; j++) {
                 matcher->rows[i].first_print[j] = init_fingerprint();
                 matcher->rows[i].first_location[j] = 0;
@@ -263,6 +276,7 @@ void dict_matching_free(dict_matcher matcher) {
             free(matcher->rows[i].period_f);
             free(matcher->rows[i].period);
             free(matcher->rows[i].count);
+            rbtree_destroy(matcher->rows[i].next_progression);
 
             hashlookup_free(&matcher->rows[i].lookup);
         }
