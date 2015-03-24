@@ -252,7 +252,7 @@ void fingerprint_concat(fingerprinter printer, fingerprint u, fingerprint v, fin
         0 otherwise
 */
 int fingerprint_equals(fingerprint T_f, fingerprint P_f) {
-    return (mpz_equals(T_f->r_k, P_f->r_k) && mpz_equals(T_f->r_mk, P_f->r_mk) && mpz_equals(T_f->finger, P_f->finger));
+    return mpz_equals(T_f->finger, P_f->finger);
 }
 
 /*
