@@ -58,7 +58,6 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
                 row->last_location[i] = location;
                 fingerprint_assign(finger, row->last_print[i]);
                 row->count[i]++;
-                rbtree_insert(row->next_progression, (void*)location, (void*)i, compare_int);
             } else {
                 fprintf(stderr, "Warning: Non-Periodic occurance spotted. Occurance ignored.");
             }
