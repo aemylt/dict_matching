@@ -132,6 +132,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         while ((1 << matcher->num_rows) < m_max) {
             matcher->num_rows++;
         }
+        matcher->num_rows++;
         matcher->rows = malloc(sizeof(pattern_row) * matcher->num_rows);
 
         int j, k, lookup_size, old_lookup_size;
@@ -199,6 +200,24 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             old_lookup_size = lookup_size;
             i++;
         }
+        matcher->rows[i].num_patterns = old_lookup_size;
+        matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
+        matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
+        matcher->rows[i].last_print = malloc(sizeof(fingerprint) * old_lookup_size);
+        matcher->rows[i].last_location = malloc(sizeof(int) * old_lookup_size);
+        matcher->rows[i].period = malloc(sizeof(int) * old_lookup_size);
+        matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
+        matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
+        matcher->rows[i].next_progression = rbtree_create();
+        for (j = 0; j < old_lookup_size; j++) {
+            matcher->rows[i].first_print[j] = init_fingerprint();
+            matcher->rows[i].first_location[j] = 0;
+            matcher->rows[i].last_print[j] = init_fingerprint();
+            matcher->rows[i].last_location[j] = 0;
+            matcher->rows[i].period[j] = 0;
+            matcher->rows[i].count[j] = 0;
+            matcher->rows[i].period_f[j] = init_fingerprint();
+        }
 
         for (i = 0; i < num_patterns; i++) {
             fingerprint_free(patterns[i]);
@@ -225,16 +244,11 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         int i, occurance, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
             occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
-            if (occurance) {
+            if ((i < matcher->num_rows - 1) && (occurance)) {
                 fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
                 match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, &long_result);
                 if (match != -1) {
-                    if (i != matcher->num_rows - 1) {
-                        add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
-                    }
-                    else {
-                        long_result = 1;
-                    }
+                    add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
                 }
             }
         }
@@ -277,7 +291,7 @@ void dict_matching_free(dict_matcher matcher) {
             free(matcher->rows[i].count);
             rbtree_destroy(matcher->rows[i].next_progression);
 
-            hashlookup_free(&matcher->rows[i].lookup);
+            if (i != matcher->num_rows - 1) hashlookup_free(&matcher->rows[i].lookup);
         }
         free(matcher->rows);
     }
