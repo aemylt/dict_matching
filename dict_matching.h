@@ -26,20 +26,34 @@ int compare_int(void *leftp, void *rightp) {
     else return 0;
 }
 
-int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, fingerprint tmp) {
+int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, int num_patterns, fingerprint tmp) {
     int i = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size, (void*)-1, compare_int);
     if (i != -1) {
         fingerprint_assign(row->first_print[i], finger);
+    }
+    if (row->row_size >= num_patterns) {
+        int del = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size - num_patterns, (void*)-1, compare_int);
+        if (del != -1) {
+            if (row->count[del] > 1) {
+                fingerprint_concat(printer, row->first_print[del], row->period_f[del], tmp);
+                fingerprint_assign(tmp, row->first_print[del]);
+                row->first_location[i] += row->period[del];
+                rbtree_delete(row->next_progression, (void*)j - row->row_size - num_patterns, compare_int);
+                rbtree_insert(row->next_progression, (void*)j - row->row_size - num_patterns + row->period[del], (void*)del, compare_int);
+            }
+            row->count[del]--;
+        }
+    } else if (i != -1) {
         if (row->count[i] > 1) {
             fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
             fingerprint_assign(tmp, row->first_print[i]);
             row->first_location[i] += row->period[i];
-            rbtree_insert(row->next_progression, (void*)j + row->period[i], (void*)i, compare_int);
+            rbtree_delete(row->next_progression, (void*)j - row->row_size, compare_int);
+            rbtree_insert(row->next_progression, (void*)j - row->row_size + row->period[i], (void*)i, compare_int);
         }
         row->count[i]--;
-        return 1;
     }
-    return 0;
+    return (i != -1) ? 1 : 0;
 }
 
 void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, int location, int i, fingerprint tmp) {
@@ -50,7 +64,6 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
             row->last_location[i] = location;
             fingerprint_assign(finger, row->last_print[i]);
             row->count[i] = 2;
-            rbtree_insert(row->next_progression, (void*)location, (void*)i, compare_int);
         } else {
             fingerprint_suffix(printer, finger, row->last_print[i], tmp);
             int period = location - row->last_location[i];
@@ -84,6 +97,7 @@ typedef struct dict_matcher_t {
     fingerprint T_f;
     fingerprint T_prev;
     fingerprint current;
+    int num_patterns;
 } *dict_matcher;
 
 void get_periods(char **P, int *m, int num_patterns, int *period) {
@@ -114,6 +128,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     matcher->T_j = init_fingerprint();
     matcher->tmp = init_fingerprint();
     matcher->T_f = init_fingerprint();
+    matcher->num_patterns = num_patterns;
 
     int *periods = malloc(sizeof(int) * num_patterns);
     get_periods(P, m, num_patterns, periods);
@@ -236,7 +251,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     if (matcher->num_rows) {
         int i, occurance, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
-            occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
+            occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp, matcher->num_patterns);
             if ((i < matcher->num_rows - 1) && (occurance)) {
                 fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
                 match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, NULL);
