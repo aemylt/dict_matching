@@ -33,13 +33,10 @@ int suffix(char *t, int n, char **p, int *m, int num_patterns) {
 
 short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char **p, int *m) {
     short_dict_matcher state = malloc(sizeof(struct short_dict_matcher_t));
-    int i = 1, j, k_p = 0;
-    for (i = 1; i != 0; i <<= 1) {
-        if (k & i) {
-            k_p = i;
-        }
+    int i, j, k_p = 1;
+    while (k_p <= k) {
+        k_p <<= 1;
     }
-    if (k_p ^ k) k_p <<= 1;
     state->k = k_p;
     state->t_prev = malloc(sizeof(fingerprint) * k_p);
     for (i = 0; i < k_p; i++) {
