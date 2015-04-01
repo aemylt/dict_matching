@@ -11,7 +11,7 @@
 #include "rbtree.c"
 
 typedef struct {
-    int row_size, num_patterns, *period, *count, *first_location, *last_location;
+    int row_size, num_patterns, *period, *count, *first_location, *last_location, *end_pattern;
     hash_lookup lookup;
     fingerprint *first_print, *last_print;
     fingerprint *period_f;
@@ -30,6 +30,16 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
     int i = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size, (void*)-1, compare_int);
     if (i != -1) {
         fingerprint_assign(row->first_print[i], finger);
+        if ((row->row_size < num_patterns) || (row->end_pattern[i])) {
+            if (row->count[i] > 1) {
+                fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
+                fingerprint_assign(tmp, row->first_print[i]);
+                row->first_location[i] += row->period[i];
+                rbtree_delete(row->next_progression, (void*)j - row->row_size, compare_int);
+                rbtree_insert(row->next_progression, (void*)j - row->row_size + row->period[i], (void*)i, compare_int);
+            }
+            row->count[i]--;
+        }
     }
     if (row->row_size >= num_patterns) {
         int del = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size - num_patterns, (void*)-1, compare_int);
@@ -43,15 +53,6 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
             }
             row->count[del]--;
         }
-    } else if (i != -1) {
-        if (row->count[i] > 1) {
-            fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
-            fingerprint_assign(tmp, row->first_print[i]);
-            row->first_location[i] += row->period[i];
-            rbtree_delete(row->next_progression, (void*)j - row->row_size, compare_int);
-            rbtree_insert(row->next_progression, (void*)j - row->row_size + row->period[i], (void*)i, compare_int);
-        }
-        row->count[i]--;
     }
     return (i != -1) ? 1 : 0;
 }
@@ -172,14 +173,23 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         i = 0;
         old_lookup_size = lookup_size;
         lookup_size = 0;
+        int *end_pattern_tmp = malloc(sizeof(int) * num_patterns);
+        int *end_pattern = NULL;
         while ((1 << (i + 1)) <= m_max) {
             matcher->rows[i].row_size = 1 << i;
+            matcher->rows[i].end_pattern = end_pattern;
             lookup_size = 0;
             for (j = 0; j < num_patterns; j++) {
                 if ((periods[j] > num_patterns) && (m[j] - num_patterns >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
+                    if (m[j] - num_patterns < (matcher->rows[i].row_size << 2)) {
+                        end_pattern_tmp[lookup_size] = 1;
+                    } else {
+                        end_pattern_tmp[lookup_size] = 0;
+                    }
                     for (k = 0; k < lookup_size; k++) {
                         if (fingerprint_equals(patterns[k], patterns[lookup_size])) {
+                            end_pattern_tmp[k] |= end_pattern_tmp[lookup_size];
                             break;
                         }
                     }
@@ -206,9 +216,15 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                 matcher->rows[i].period_f[j] = init_fingerprint();
             }
             old_lookup_size = lookup_size;
+            end_pattern = malloc(sizeof(int) * lookup_size);
+            for (j = 0; j < lookup_size; j++) {
+                int location = hashlookup_search(matcher->rows[i].lookup, patterns[j], NULL);
+                end_pattern[location] = end_pattern_tmp[j];
+            }
             i++;
         }
         matcher->rows[i].row_size = 1 << i;
+        matcher->rows[i].end_pattern = end_pattern;
         matcher->rows[i].num_patterns = old_lookup_size;
         matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
         matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
@@ -232,6 +248,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             fingerprint_free(patterns[i]);
         }
         free(patterns);
+        free(end_pattern_tmp);
     }
 
     matcher->short_matcher = short_dict_matching_build(num_patterns, matcher->printer, P, m);
@@ -300,6 +317,9 @@ void dict_matching_free(dict_matcher matcher) {
             rbtree_destroy(matcher->rows[i].next_progression);
 
             if (i != matcher->num_rows - 1) hashlookup_free(&matcher->rows[i].lookup);
+        }
+        for (i = 1; i < matcher->num_rows; i++) {
+            free(matcher->rows[i].end_pattern);
         }
         free(matcher->rows);
     }
