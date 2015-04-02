@@ -41,7 +41,7 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
     int i = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size, (void*)-1, compare_int);
     if (i != -1) {
         fingerprint_assign(row->first_print[i], finger);
-        if ((!row->num_complete) || (row->row_size < row->num_complete) || (!row->end_pattern[i])) {
+        if (!row->end_pattern[i]) {
             if (row->count[i] > 1) {
                 fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
                 fingerprint_assign(tmp, row->first_print[i]);
@@ -52,7 +52,7 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
             row->count[i]--;
         }
     }
-    if ((row->num_complete) && (row->row_size >= row->num_complete)) {
+    if (row->num_complete) {
         int del = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size - row->num_complete, (void*)-1, compare_int);
         if (del != -1) {
             if (row->count[del] > 1) {
