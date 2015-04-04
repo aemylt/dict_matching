@@ -22,6 +22,7 @@ typedef struct {
     int *progression_location;
     int *prefix_length;
     hash_lookup lookup;
+    hash_lookup *suffixes;
     fingerprint *first_print;
     fingerprint *last_print;
     fingerprint *period_f;
@@ -161,7 +162,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         matcher->rows = malloc(sizeof(pattern_row) * matcher->num_rows);
 
-        int j, k, lookup_size, old_lookup_size;
+        int j, k, l, lookup_size, old_lookup_size;
         char *first_letters = malloc(sizeof(char) * num_patterns);
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
@@ -195,8 +196,14 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         int *prefix_length_tmp = malloc(sizeof(int) * num_patterns);
         int *prefix_length = NULL;
         fingerprint *complete_patterns = malloc(sizeof(fingerprint) * num_patterns);
+        fingerprint **suffixes = malloc(sizeof(fingerprint*) * num_patterns);
+        int *num_suffixes = malloc(sizeof(int) * num_patterns);
         for (i = 0; i < num_patterns; i++) {
             complete_patterns[i] = init_fingerprint();
+            suffixes[i] = malloc(sizeof(fingerprint) * num_patterns);
+            for (j = 0; j < num_patterns; j++) {
+                suffixes[i][j] = init_fingerprint();
+            }
         }
         int complete_size = 0;
         i = 0;
@@ -204,9 +211,11 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].num_complete = complete_size;
             if (complete_size) {
                 matcher->rows[i].complete_f = malloc(sizeof(fingerprint) * complete_size);
+                matcher->rows[i].suffixes = malloc(sizeof(hash_lookup) * complete_size);
                 for (j = 0; j < complete_size; j++) {
                     matcher->rows[i].complete_f[j] = init_fingerprint();
                     fingerprint_assign(complete_patterns[j], matcher->rows[i].complete_f[j]);
+                    matcher->rows[i].suffixes[j] = hashlookup_build(suffixes[j], NULL, num_suffixes[j], matcher->printer);
                 }
                 matcher->rows[i].prefix_length = prefix_length;
                 matcher->rows[i].progression_location = progression_location;
@@ -223,9 +232,20 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                         set_fingerprint(matcher->printer, P[j], m[j] - num_patterns, complete_patterns[complete_size]);
                         progression_location_tmp[complete_size] = lookup_size;
                         prefix_length_tmp[complete_size] = m[j] - num_patterns;
+                        num_suffixes[complete_size] = 1;
+                        set_fingerprint(matcher->printer, &P[j][m[j] - num_patterns], num_patterns, suffixes[complete_size][0]);
                         for (k = 0; k < complete_size; k++) {
                             if (fingerprint_equals(complete_patterns[k], complete_patterns[complete_size])) {
                                 end_pattern_tmp[lookup_size] = 0;
+                                for (l = 0; l < num_suffixes[k]; l++) {
+                                    if (fingerprint_equals(suffixes[k][l], suffixes[complete_size][0])) {
+                                        break;
+                                    }
+                                    if (l == num_suffixes[k]) {
+                                        fingerprint_assign(suffixes[complete_size][0], suffixes[k][l]);
+                                        num_suffixes[k]++;
+                                    }
+                                }
                                 break;
                             }
                         }
@@ -284,9 +304,11 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->rows[i].num_complete = complete_size;
         if (complete_size) {
             matcher->rows[i].complete_f = malloc(sizeof(fingerprint) * complete_size);
+            matcher->rows[i].suffixes = malloc(sizeof(hash_lookup) * complete_size);
             for (j = 0; j < complete_size; j++) {
                 matcher->rows[i].complete_f[j] = init_fingerprint();
                 fingerprint_assign(complete_patterns[j], matcher->rows[i].complete_f[j]);
+                matcher->rows[i].suffixes[j] = hashlookup_build(suffixes[j], NULL, num_suffixes[j], matcher->printer);
             }
             matcher->rows[i].prefix_length = prefix_length;
             matcher->rows[i].progression_location = progression_location;
@@ -321,7 +343,13 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         free(prefix_length_tmp);
         for (i = 0; i < num_patterns; i++) {
             fingerprint_free(complete_patterns[i]);
+            for (j = 0; j < num_patterns; j++) {
+                fingerprint_free(suffixes[i][j]);
+            }
+            free(suffixes[i]);
         }
+        free(suffixes);
+        free(num_suffixes);
         free(complete_patterns);
     }
 
@@ -394,7 +422,9 @@ void dict_matching_free(dict_matcher matcher) {
             if (matcher->rows[i].num_complete) {
                 for (j = 0; j < matcher->rows[i].num_complete; j++) {
                     fingerprint_free(matcher->rows[i].complete_f[j]);
+                    hashlookup_free(&matcher->rows[i].suffixes[j]);
                 }
+                free(matcher->rows[i].suffixes);
                 free(matcher->rows[i].complete_f);
                 free(matcher->rows[i].prefix_length);
                 free(matcher->rows[i].progression_location);
