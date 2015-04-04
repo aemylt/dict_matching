@@ -15,6 +15,7 @@ void build_up() {
 }
 
 void stream_test(char *T) {
+    printf("%s\n", T);
     dict_matcher matcher = dict_matching_build(P, m, num_patterns, 100, alpha);
     int i;
     for (i = 0; i < n; i++) {
