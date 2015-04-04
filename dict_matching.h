@@ -429,8 +429,6 @@ void dict_matching_free(dict_matcher matcher) {
                 free(matcher->rows[i].prefix_length);
                 free(matcher->rows[i].progression_location);
             }
-        }
-        for (i = 1; i < matcher->num_rows; i++) {
             free(matcher->rows[i].end_pattern);
         }
         free(matcher->rows);
