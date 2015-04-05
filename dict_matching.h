@@ -14,6 +14,7 @@ typedef struct {
     int row_size;
     int num_patterns;
     int num_complete;
+    int cur_prefix;
     int *period;
     int *count;
     int *first_location;
@@ -273,6 +274,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
             matcher->rows[i].next_progression = rbtree_create();
+            matcher->rows[i].cur_prefix = 0;
             for (j = 0; j < old_lookup_size; j++) {
                 matcher->rows[i].first_print[j] = init_fingerprint();
                 matcher->rows[i].first_location[j] = 0;
@@ -324,6 +326,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
         matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
         matcher->rows[i].next_progression = rbtree_create();
+        matcher->rows[i].cur_prefix = 0;
         for (j = 0; j < old_lookup_size; j++) {
             matcher->rows[i].first_print[j] = init_fingerprint();
             matcher->rows[i].first_location[j] = 0;
@@ -369,6 +372,23 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     if (matcher->num_rows) {
         int i, occurance, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
+            if (matcher->rows[i].num_complete) {
+                int cur_prefix = matcher->rows[i].cur_prefix;
+                int cur_progression = matcher->rows[i].progression_location[cur_prefix];
+                if ((matcher->rows[i].count[cur_progression]) && (matcher->rows[i].first_location[cur_progression] <= (j - matcher->rows[i].prefix_length[cur_prefix] + (matcher->rows[i].row_size << 1)))) {
+                    printf("%d!\n", j);
+                }
+
+                if (matcher->rows[i].num_complete > 1) {
+                    if (++cur_prefix == matcher->rows[i].num_complete) cur_prefix = 0;
+                    cur_progression = matcher->rows[i].progression_location[cur_prefix];
+                    if ((matcher->rows[i].count[cur_progression]) && (matcher->rows[i].first_location[cur_progression] <= (j - matcher->rows[i].prefix_length[cur_prefix] + (matcher->rows[i].row_size << 1)))) {
+                        printf("%d!\n", j);
+                    }
+                    matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
+                }
+            }
+
             occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
             if ((i < matcher->num_rows - 1) && (occurance)) {
                 fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
