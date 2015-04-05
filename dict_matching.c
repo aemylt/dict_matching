@@ -170,21 +170,19 @@ void test_all_short_patterns() {
 
 void test_all_short_patterns_plus_powers_of_two() {
     n = 66;
-    num_patterns = 11;
+    num_patterns = 9;
     m = malloc(sizeof(int) * num_patterns);
-    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4; m[4] = 5; m[5] = 6; m[6] = 7; m[7] = 16; m[8] = 16; m[9] = 32; m[10] = 64;
+    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4; m[4] = 5; m[5] = 6; m[6] = 7; m[7] = 32; m[8] = 64;
     build_up();
-    strcpy(P[0],  "a");
-    strcpy(P[1],  "ab");
-    strcpy(P[2],  "abc");
-    strcpy(P[3],  "abcd");
-    strcpy(P[4],  "abcde");
-    strcpy(P[5],  "abcdef");
-    strcpy(P[6],  "abcdefg");
-    strcpy(P[7],  "abcdefghijklmnop");
-    strcpy(P[8],  "bcdefghijklmnopq");
-    strcpy(P[9],  "cdefghijklmnopqrcdefghijklmnopqr");
-    strcpy(P[10], "cdefghijklmnopqrcdefghijklmnopqrdefghijklmnopqrcdefghijklmnopqrs");
+    strcpy(P[0], "a");
+    strcpy(P[1], "ab");
+    strcpy(P[2], "abc");
+    strcpy(P[3], "abcd");
+    strcpy(P[4], "abcde");
+    strcpy(P[5], "abcdef");
+    strcpy(P[6], "abcdefg");
+    strcpy(P[7], "cdefghijklmnopqrcdefghijklmnopqr");
+    strcpy(P[8], "cdefghijklmnopqrcdefghijklmnopqrdefghijklmnopqrcdefghijklmnopqrs");
     correct[0]  =  0; correct[1]  =  1; correct[2]  =  2; correct[3]  =  3; correct[4]  =  4; correct[5]  =  5;
     correct[6]  =  6; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
     correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = 15; correct[16] = 16; correct[17] = -1;
@@ -261,16 +259,16 @@ void test_periodic_matching_prefix() {
 
 void test_long_periodic_and_short() {
     m = malloc(sizeof(int) * 4);
-    m[0] = 8;
-    m[1] = 8;
+    m[0] = 16;
+    m[1] = 16;
     m[2] = 3;
     m[3] = 7;
     num_patterns = 4;
     n = 37;
     alpha = 0;
     build_up();
-    strcpy(P[0], "ababbabb");
-    strcpy(P[1], "ababbabc");
+    strcpy(P[0], "aababbabbabcabca");
+    strcpy(P[1], "ababbabcababbbbb");
     strcpy(P[2], "abb");
     strcpy(P[3], "abcabca");
     correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  = -1;
@@ -286,8 +284,8 @@ void test_long_periodic_and_short() {
 
 void test_long_periodics_and_short() {
     m = malloc(sizeof(int) * 5);
-    m[0] = 8;
-    m[1] = 8;
+    m[0] = 16;
+    m[1] = 16;
     m[2] = 3;
     m[3] = 7;
     m[4] = 9;
@@ -295,8 +293,8 @@ void test_long_periodics_and_short() {
     n = 45;
     alpha = 0;
     build_up();
-    strcpy(P[0], "ababbabb");
-    strcpy(P[1], "ababbabc");
+    strcpy(P[0], "aababbabbabcabca");
+    strcpy(P[1], "ababbabcababbbbb");
     strcpy(P[2], "abb");
     strcpy(P[3], "abcabca");
     strcpy(P[4], "ababababa");
