@@ -375,14 +375,16 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             if (matcher->rows[i].num_complete) {
                 int cur_prefix = matcher->rows[i].cur_prefix;
                 int cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                if ((matcher->rows[i].count[cur_progression]) && (matcher->rows[i].first_location[cur_progression] <= (j - matcher->rows[i].prefix_length[cur_prefix] + (matcher->rows[i].row_size << 1))) && (matcher->rows[i].first_location[cur_progression] >= j - matcher->rows[i].num_complete)) {
+                int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
+                if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
                     printf("%d!\n", j);
                 }
 
                 if (matcher->rows[i].num_complete > 1) {
                     if (++cur_prefix == matcher->rows[i].num_complete) cur_prefix = 0;
                     cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                    if ((matcher->rows[i].count[cur_progression]) && (matcher->rows[i].first_location[cur_progression] <= (j - matcher->rows[i].prefix_length[cur_prefix] + (matcher->rows[i].row_size << 1))) && (matcher->rows[i].first_location[cur_progression] >= j - matcher->rows[i].num_complete)) {
+                    int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
+                    if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
                         printf("%d!\n", j);
                     }
                     matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
