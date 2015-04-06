@@ -109,7 +109,7 @@ typedef struct dict_matcher_t {
     int num_rows, *end_pattern;
     first_lookup first_round;
     fingerprint T_f;
-    fingerprint T_prev;
+    fingerprint *T_prev;
     fingerprint current;
     int num_patterns;
 } *dict_matcher;
@@ -177,11 +177,12 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         matcher->first_round = firstlookup_build(first_letters, lookup_size);
         free(first_letters);
-        fingerprint *patterns = malloc(sizeof(fingerprint) * num_patterns);
-        matcher->T_prev = init_fingerprint();
         matcher->current = init_fingerprint();
+        matcher->T_prev = malloc(sizeof(fingerprint) * num_patterns);
+        fingerprint *patterns = malloc(sizeof(fingerprint) * num_patterns);
         for (i = 0; i < num_patterns; i++) {
             patterns[i] = init_fingerprint();
+            matcher->T_prev[i] = init_fingerprint();
         }
         old_lookup_size = lookup_size;
         lookup_size = 0;
@@ -362,7 +363,6 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
 }
 
 int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
-    if (matcher->num_rows) fingerprint_assign(matcher->T_f, matcher->T_prev);
     set_fingerprint(matcher->printer, &T_j, 1, matcher->T_j);
     fingerprint_concat(matcher->printer, matcher->T_f, matcher->T_j, matcher->tmp);
     fingerprint_assign(matcher->tmp, matcher->T_f);
@@ -400,9 +400,12 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         }
 
         int first_round = firstlookup_search(matcher->first_round, T_j);
+        int index = j % matcher->num_patterns;
         if (first_round != -1) {
-            add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev, j, first_round, matcher->tmp);
+            int prev_index = (index) ? index - 1 : matcher->num_patterns - 1;
+            add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev[prev_index], j, first_round, matcher->tmp);
         }
+        fingerprint_assign(matcher->T_f, matcher->T_prev[index]);
     }
 
     short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
@@ -418,7 +421,7 @@ void dict_matching_free(dict_matcher matcher) {
     fingerprint_free(matcher->T_f);
 
     if (matcher->num_rows){
-        fingerprint_free(matcher->T_prev);
+        //fingerprint_free(matcher->T_prev);
         fingerprint_free(matcher->current);
         firstlookup_free(&matcher->first_round);
         int i, j;
