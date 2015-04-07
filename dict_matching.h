@@ -438,10 +438,13 @@ void dict_matching_free(dict_matcher matcher) {
     fingerprint_free(matcher->T_f);
 
     if (matcher->num_rows){
-        //fingerprint_free(matcher->T_prev);
         fingerprint_free(matcher->current);
         firstlookup_free(&matcher->first_round);
         int i, j;
+        for (i = 0; i < matcher->num_patterns; i++) {
+            fingerprint_free(matcher->T_prev[i]);
+        }
+        free(matcher->T_prev);
         for (i = 0; i < matcher->num_rows; i++) {
             for (j = 0; j < matcher->rows[i].num_patterns; j++) {
                 fingerprint_free(matcher->rows[i].first_print[j]);
