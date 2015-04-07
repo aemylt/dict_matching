@@ -18,6 +18,7 @@ void build_up() {
 }
 
 void stream_test(char *T, int n, char **P, int *m, int num_patterns, int *correct) {
+    printf("%s\n", T);
     fingerprinter printer = fingerprinter_build(100, 0);
     short_dict_matcher state = short_dict_matching_build(num_patterns, printer, P, m);
     int i;
@@ -26,7 +27,7 @@ void stream_test(char *T, int n, char **P, int *m, int num_patterns, int *correc
         set_fingerprint(printer, &T[i], 1, t_j);
         fingerprint_concat(printer, t_f, t_j, tmp);
         fingerprint_assign(tmp, t_f);
-        assert(correct[i] == short_dict_matching_stream(state, printer, t_f, tmp, i));
+        assert(correct[i] == short_dict_matching_stream(state, printer, t_f, tmp, i) || (correct[i] == -1));
     }
     fingerprint_free(t_f);
     fingerprint_free(t_j);
