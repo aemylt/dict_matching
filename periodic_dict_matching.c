@@ -23,16 +23,25 @@ void stream_test(char *T) {
     periodic_dict_matcher state = periodic_dict_matching_build(P, m, rho, num_patterns, printer);
     int i;
     fingerprint t_f = init_fingerprint(), t_j = init_fingerprint(), tmp = init_fingerprint();
+    fingerprint *t_prev = malloc(sizeof(fingerprint) * num_patterns);
+    for (i = 0; i < num_patterns; i++) {
+        t_prev[i] = init_fingerprint();
+    }
     for (i = 0; i < n; i++) {
         set_fingerprint(printer, &T[i], 1, t_j);
         fingerprint_concat(printer, t_f, t_j, tmp);
         fingerprint_assign(tmp, t_f);
-        assert(correct[i] == periodic_dict_matching_stream(state, printer, t_f, tmp, i));
+        assert(correct[i] == periodic_dict_matching_stream(state, printer, t_f, t_prev, tmp, i));
+        fingerprint_assign(t_f, t_prev[i % state->k]);
     }
     fingerprint_free(t_f);
     fingerprint_free(t_j);
     fingerprint_free(tmp);
     fingerprinter_free(printer);
+    for (i = 0; i < num_patterns; i++) {
+        fingerprint_free(t_prev[i]);
+    }
+    free(t_prev);
     periodic_dict_matching_free(state);
 }
 

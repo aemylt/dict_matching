@@ -10,19 +10,16 @@ typedef struct periodic_dict_matcher_t {
     fingerprint *first_print;
     fingerprint *last_print;
     fingerprint *period_f;
-    fingerprint *t_prev;
 } *periodic_dict_matcher;
 
 periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period, int k, fingerprinter printer) {
     periodic_dict_matcher state = malloc(sizeof(struct periodic_dict_matcher_t));
     state->k = k;
-    state->t_prev = malloc(sizeof(fingerprint) * k);
     int i, j, num_heads = 0, num_tails = 0, location;
     fingerprint *prints = malloc(sizeof(fingerprint) * k);
     fingerprint *period_prints = malloc(sizeof(fingerprint) * k);
     int *periods = malloc(sizeof(int) * k);
     for (i = 0; i < k; i++) {
-        state->t_prev[i] = init_fingerprint();
         prints[i] = init_fingerprint();
         period_prints[i] = init_fingerprint();
         if ((period[i] <= k) && (m[i] > k)) {
@@ -98,8 +95,8 @@ periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period
     return state;
 }
 
-int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
-    fingerprint_suffix(printer, t_f, state->t_prev[j % state->k], tmp);
+int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint *t_prev, fingerprint tmp, int j) {
+    fingerprint_suffix(printer, t_f, t_prev[j % state->k], tmp);
     int head_location = hashlookup_search(state->head, tmp, NULL);
     int head_pointer = 0;
     int tail_location = hashlookup_search(state->tail, tmp, &head_pointer);
@@ -129,16 +126,11 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
             result = j;
         }
     }
-    fingerprint_assign(t_f, state->t_prev[j % state->k]);
     return result;
 }
 
 void periodic_dict_matching_free(periodic_dict_matcher state) {
     int i;
-    for (i = 0; i < state->k; i++) {
-        fingerprint_free(state->t_prev[i]);
-    }
-    free(state->t_prev);
     for (i = 0; i < state->num_heads; i++) {
         fingerprint_free(state->first_print[i]);
         fingerprint_free(state->last_print[i]);

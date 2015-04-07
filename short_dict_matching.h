@@ -8,7 +8,6 @@
 
 typedef struct short_dict_matcher_t {
     hash_lookup lookup;
-    fingerprint *t_prev;
     int num_prints;
     int k;
     int k_p;
@@ -40,10 +39,6 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     }
     state->k = k;
     state->k_p = k_p;
-    state->t_prev = malloc(sizeof(fingerprint) * k);
-    for (i = 0; i < k; i++) {
-        state->t_prev[i] = init_fingerprint();
-    }
     fingerprint *pattern_prints = malloc(sizeof(fingerprint) * k_p * k_p);
     int *suffix_match = malloc(sizeof(int) * k_p * k_p);
     for (i = 0; i < k_p * k_p; i++) {
@@ -99,13 +94,13 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     return state;
 }
 
-int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
+int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint *t_prev, fingerprint tmp, int j) {
     int result = -1, found, match = 0, start = 0, end = state->k_p, middle;
     if (state->num_prints) {
         while (start < end) {
             middle = (start + end) / 2;
             if (middle <= state->k) {
-                fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
+                fingerprint_suffix(printer, t_f, t_prev[GET_INDEX(state->k, middle, j)], tmp);
                 found = hashlookup_search(state->lookup, tmp, &match);
                 if (match) {
                     result = j;
@@ -122,7 +117,7 @@ int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, 
         if (result == -1) {
             middle = start;
             if (middle <= state->k) {
-                fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
+                fingerprint_suffix(printer, t_f, t_prev[GET_INDEX(state->k, middle, j)], tmp);
                 found = hashlookup_search(state->lookup, tmp, &match);
                 if (match) {
                     result = j;
@@ -131,16 +126,10 @@ int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, 
         }
     }
 
-    fingerprint_assign(t_f, state->t_prev[j % state->k]);
     return result;
 }
 
 void short_dict_matching_free(short_dict_matcher state) {
-    int i;
-    for (i = 0; i < state->k; i++) {
-        fingerprint_free(state->t_prev[i]);
-    }
-    free(state->t_prev);
     if (state->num_prints) hashlookup_free(&state->lookup);
     free(state);
 }

@@ -179,11 +179,9 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->first_round = firstlookup_build(first_letters, lookup_size);
         free(first_letters);
         matcher->current = init_fingerprint();
-        matcher->T_prev = malloc(sizeof(fingerprint) * num_patterns);
         fingerprint *patterns = malloc(sizeof(fingerprint) * num_patterns);
         for (i = 0; i < num_patterns; i++) {
             patterns[i] = init_fingerprint();
-            matcher->T_prev[i] = init_fingerprint();
         }
         old_lookup_size = lookup_size;
         lookup_size = 0;
@@ -359,6 +357,12 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
 
     matcher->short_matcher = short_dict_matching_build(num_patterns, matcher->printer, P, m);
     matcher->periodic_matcher = periodic_dict_matching_build(P, m, periods, num_patterns, matcher->printer);
+
+    matcher->T_prev = malloc(sizeof(fingerprint) * num_patterns);
+    for (i = 0; i < num_patterns; i++) {
+        matcher->T_prev[i] = init_fingerprint();
+    }
+
     return matcher;
 }
 
@@ -426,12 +430,12 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             int prev_index = (index) ? index - 1 : matcher->num_patterns - 1;
             add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev[prev_index], j, first_round, matcher->tmp);
         }
-        fingerprint_assign(matcher->T_f, matcher->T_prev[index]);
     }
 
-    short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
-    periodic_result = periodic_dict_matching_stream(matcher->periodic_matcher, matcher->printer, matcher->T_f, matcher->tmp, j);
+    short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->T_prev, matcher->tmp, j);
+    periodic_result = periodic_dict_matching_stream(matcher->periodic_matcher, matcher->printer, matcher->T_f, matcher->T_prev, matcher->tmp, j);
 
+    fingerprint_assign(matcher->T_f, matcher->T_prev[j % matcher->num_patterns]);
     return ((short_result != -1) || (periodic_result != -1)) ? j : -1;
 }
 
@@ -441,14 +445,12 @@ void dict_matching_free(dict_matcher matcher) {
     fingerprinter_free(matcher->printer);
     fingerprint_free(matcher->T_f);
 
+    int i;
+
     if (matcher->num_rows){
         fingerprint_free(matcher->current);
         firstlookup_free(&matcher->first_round);
-        int i, j;
-        for (i = 0; i < matcher->num_patterns; i++) {
-            fingerprint_free(matcher->T_prev[i]);
-        }
-        free(matcher->T_prev);
+        int j;
         for (i = 0; i < matcher->num_rows; i++) {
             for (j = 0; j < matcher->rows[i].num_patterns; j++) {
                 fingerprint_free(matcher->rows[i].first_print[j]);
@@ -484,6 +486,11 @@ void dict_matching_free(dict_matcher matcher) {
 
     short_dict_matching_free(matcher->short_matcher);
     periodic_dict_matching_free(matcher->periodic_matcher);
+
+    for (i = 0; i < matcher->num_patterns; i++) {
+        fingerprint_free(matcher->T_prev[i]);
+    }
+    free(matcher->T_prev);
 
     free(matcher);
 }
