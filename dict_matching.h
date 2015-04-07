@@ -377,7 +377,10 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                 int cur_progression = matcher->rows[i].progression_location[cur_prefix];
                 int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
                 if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                    printf("%d!\n", j);
+                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
+                    if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
+                        printf("%d!\n", j);
+                    }
                 }
 
                 if (matcher->rows[i].num_complete > 1) {
@@ -385,7 +388,10 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                     cur_progression = matcher->rows[i].progression_location[cur_prefix];
                     int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
                     if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                        printf("%d!\n", j);
+                        fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
+                        if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
+                            printf("%d!\n", j);
+                        }
                     }
                     matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
                 }
