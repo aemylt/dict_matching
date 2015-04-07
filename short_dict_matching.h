@@ -4,13 +4,14 @@
 #include "karp_rabin.h"
 #include "hash_lookup.h"
 
-#define GET_INDEX(k, m, start) ((start + m) % k)
+#define GET_INDEX(k, m, start) ((start + k - m) % k)
 
 typedef struct short_dict_matcher_t {
     hash_lookup lookup;
     fingerprint *t_prev;
     int num_prints;
     int k;
+    int k_p;
 } *short_dict_matcher;
 
 int suffix(char *t, int n, char **p, int *m, int num_patterns) {
@@ -37,9 +38,10 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
     while (k_p < k) {
         k_p <<= 1;
     }
-    state->k = k_p;
-    state->t_prev = malloc(sizeof(fingerprint) * k_p);
-    for (i = 0; i < k_p; i++) {
+    state->k = k;
+    state->k_p = k_p;
+    state->t_prev = malloc(sizeof(fingerprint) * k);
+    for (i = 0; i < k; i++) {
         state->t_prev[i] = init_fingerprint();
     }
     fingerprint *pattern_prints = malloc(sizeof(fingerprint) * k_p * k_p);
@@ -98,19 +100,33 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
 }
 
 int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, fingerprint t_f, fingerprint tmp, int j) {
-    int result = -1, found, match = 0, start = 0, end = state->k, middle;
+    int result = -1, found, match = 0, start = 0, end = state->k_p, middle;
     if (state->num_prints) {
         while (start < end) {
             middle = (start + end) / 2;
-            fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
-            found = hashlookup_search(state->lookup, tmp, &match);
-            if (match) {
-                result = j;
-                break;
-            } else if (found == -1) {
-                start = middle + 1;
+            if (middle <= state->k) {
+                fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
+                found = hashlookup_search(state->lookup, tmp, &match);
+                if (match) {
+                    result = j;
+                    break;
+                } else if (found == -1) {
+                    end = middle;
+                } else {
+                    start = middle + 1;
+                }
             } else {
                 end = middle;
+            }
+        }
+        if (result == -1) {
+            middle = start;
+            if (middle <= state->k) {
+                fingerprint_suffix(printer, t_f, state->t_prev[GET_INDEX(state->k, middle, j)], tmp);
+                found = hashlookup_search(state->lookup, tmp, &match);
+                if (match) {
+                    result = j;
+                }
             }
         }
     }
