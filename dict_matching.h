@@ -228,7 +228,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             lookup_size = 0;
             complete_size = 0;
             for (j = 0; j < num_patterns; j++) {
-                if ((periods[j] > num_patterns) && (m[j] - num_patterns >= matcher->rows[i].row_size << 1)) {
+                if ((periods[j] > num_patterns) && (m[j] > num_patterns << 1) && (m[j] - num_patterns >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
                     if (m[j] - num_patterns < (matcher->rows[i].row_size << 2)) {
                         end_pattern_tmp[lookup_size] = 1;
