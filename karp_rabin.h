@@ -148,6 +148,7 @@ void set_fingerprint(fingerprinter printer, char *T, unsigned int l, fingerprint
     int i;
 
     mpz_set_ui(print->finger, T[0]);
+    mpz_mod(print->finger, print->finger, printer->p);
 
     for (i = 1; i < l; i++) {
         mpz_mul(print->r_k, print->r_k, printer->r);
