@@ -371,7 +371,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     fingerprint_concat(matcher->printer, matcher->T_f, matcher->T_j, matcher->tmp);
     fingerprint_assign(matcher->tmp, matcher->T_f);
 
-    int short_result, periodic_result;
+    int result = -1, short_result, periodic_result;
 
     if (matcher->num_rows) {
         int i, occurance, match;
@@ -409,7 +409,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                     fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[j % matcher->num_patterns], matcher->tmp);
                     match = hashlookup_search(matcher->rows[i].suffixes[check_full], matcher->tmp, NULL);
                     if (match != -1) {
-                        printf("%d\n", j);
+                        result = j;
                     }
                 }
             }
@@ -436,7 +436,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     periodic_result = periodic_dict_matching_stream(matcher->periodic_matcher, matcher->printer, matcher->T_f, matcher->T_prev, matcher->tmp, j);
 
     fingerprint_assign(matcher->T_f, matcher->T_prev[j % matcher->num_patterns]);
-    return ((short_result != -1) || (periodic_result != -1)) ? j : -1;
+    return ((result != -1) || (short_result != -1) || (periodic_result != -1)) ? j : -1;
 }
 
 void dict_matching_free(dict_matcher matcher) {

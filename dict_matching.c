@@ -19,8 +19,7 @@ void stream_test(char *T) {
     dict_matcher matcher = dict_matching_build(P, m, num_patterns, 100, alpha);
     int i;
     for (i = 0; i < n; i++) {
-        int result = dict_matching_stream(matcher, T[i], i);
-        //assert((dict_matching_stream(matcher, T[i], i) == correct[i]) || (correct[i] == -1));
+        assert((dict_matching_stream(matcher, T[i], i) == correct[i]) || (correct[i] == -1));
     }
     dict_matching_free(matcher);
 }
@@ -185,7 +184,7 @@ void test_all_short_patterns_plus_powers_of_two() {
     strcpy(P[8], "cdefghijklmnopqrcdefghijklmnopqrdefghijklmnopqrcdefghijklmnopqrs");
     correct[0]  =  0; correct[1]  =  1; correct[2]  =  2; correct[3]  =  3; correct[4]  =  4; correct[5]  =  5;
     correct[6]  =  6; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
-    correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = 15; correct[16] = 16; correct[17] = -1;
+    correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
     correct[18] = -1; correct[19] = -1; correct[20] = -1; correct[21] = -1; correct[22] = -1; correct[23] = -1;
     correct[24] = -1; correct[25] = -1; correct[26] = -1; correct[27] = -1; correct[28] = -1; correct[29] = -1;
     correct[30] = -1; correct[31] = -1; correct[32] = -1; correct[33] = 33; correct[34] = -1; correct[35] = -1;
@@ -272,8 +271,8 @@ void test_long_periodic_and_short() {
     strcpy(P[2], "abb");
     strcpy(P[3], "abcabca");
     correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  = -1;
-    correct[6]  = -1; correct[7]  =  7; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
-    correct[12] = 12; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
+    correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
+    correct[12] = 12; correct[13] = -1; correct[14] = -1; correct[15] = 15; correct[16] = -1; correct[17] = -1;
     correct[18] = -1; correct[19] = -1; correct[20] = 20; correct[21] = -1; correct[22] = -1; correct[23] = -1;
     correct[24] = -1; correct[25] = -1; correct[26] = 26; correct[27] = -1; correct[28] = -1; correct[29] = 29;
     correct[30] = -1; correct[31] = -1; correct[32] = -1; correct[33] = -1; correct[34] = -1; correct[35] = -1;
@@ -299,8 +298,8 @@ void test_long_periodics_and_short() {
     strcpy(P[3], "abcabca");
     strcpy(P[4], "ababababa");
     correct[0]  = -1; correct[1]  = -1; correct[2]  = -1; correct[3]  = -1; correct[4]  =  4; correct[5]  = -1;
-    correct[6]  = -1; correct[7]  =  7; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
-    correct[12] = 12; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
+    correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
+    correct[12] = 12; correct[13] = -1; correct[14] = -1; correct[15] = 15; correct[16] = -1; correct[17] = -1;
     correct[18] = -1; correct[19] = -1; correct[20] = 20; correct[21] = -1; correct[22] = -1; correct[23] = -1;
     correct[24] = -1; correct[25] = -1; correct[26] = 26; correct[27] = -1; correct[28] = -1; correct[29] = 29;
     correct[30] = -1; correct[31] = -1; correct[32] = -1; correct[33] = -1; correct[34] = -1; correct[35] = -1;
