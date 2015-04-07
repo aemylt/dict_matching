@@ -375,25 +375,29 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             if (matcher->rows[i].num_complete) {
                 int cur_prefix = matcher->rows[i].cur_prefix;
                 int cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
-                if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
-                    if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                        rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
+                if (matcher->rows[i].count[cur_progression]) {
+                    int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
+                    if ((j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
+                        fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
+                        if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
+                            rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
+                        }
                     }
                 }
 
                 if (matcher->rows[i].num_complete > 1) {
                     if (++cur_prefix == matcher->rows[i].num_complete) cur_prefix = 0;
                     cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                    int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
-                    if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                        fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
-                        if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                            rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
+                    if (matcher->rows[i].count[cur_progression]) {
+                        int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
+                        if ((j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
+                            fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
+                            if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
+                                rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
+                            }
                         }
+                        matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
                     }
-                    matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
                 }
                 int check_full = (int)rbtree_lookup(matcher->rows[i].next_check, (void*)j, (void*)-1, compare_int);
                 if (check_full != -1) {
