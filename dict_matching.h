@@ -244,10 +244,10 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                                     if (fingerprint_equals(suffixes[k][l], suffixes[complete_size][0])) {
                                         break;
                                     }
-                                    if (l == num_suffixes[k]) {
-                                        fingerprint_assign(suffixes[complete_size][0], suffixes[k][l]);
-                                        num_suffixes[k]++;
-                                    }
+                                }
+                                if (l == num_suffixes[k]) {
+                                    fingerprint_assign(suffixes[complete_size][0], suffixes[k][l]);
+                                    num_suffixes[k]++;
                                 }
                                 break;
                             }
