@@ -29,6 +29,7 @@ typedef struct {
     fingerprint *period_f;
     fingerprint *complete_f;
     rbtree next_progression;
+    rbtree next_check;
 } pattern_row;
 
 int compare_int(void *leftp, void *rightp) {
@@ -194,7 +195,6 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         int *pattern_hash_id = malloc(sizeof(int) * num_patterns);
         int *progression_location_tmp = malloc(sizeof(int) * num_patterns);
         int *progression_location = NULL;
-        int *period_location = NULL;
         int *prefix_length_tmp = malloc(sizeof(int) * num_patterns);
         int *prefix_length = NULL;
         fingerprint *complete_patterns = malloc(sizeof(fingerprint) * num_patterns);
@@ -221,6 +221,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                 }
                 matcher->rows[i].prefix_length = prefix_length;
                 matcher->rows[i].progression_location = progression_location;
+                matcher->rows[i].next_check = rbtree_create();
             }
             matcher->rows[i].row_size = 1 << i;
             matcher->rows[i].end_pattern = end_pattern;
@@ -293,12 +294,10 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                 end_pattern[location] = end_pattern_tmp[j];
             }
             if (complete_size) {
-                period_location = malloc(sizeof(int) * complete_size);
                 prefix_length = malloc(sizeof(int) * complete_size);
                 progression_location = malloc(sizeof(int) * complete_size);
                 for (j = 0; j < complete_size; j++) {
-                    period_location[j] = pattern_hash_id[progression_location_tmp[j]];
-                    progression_location[j] = progression_location_tmp[j];
+                    progression_location[j] = pattern_hash_id[progression_location_tmp[j]];
                     prefix_length[j] = prefix_length_tmp[j];
                 }
             }
@@ -315,6 +314,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             }
             matcher->rows[i].prefix_length = prefix_length;
             matcher->rows[i].progression_location = progression_location;
+            matcher->rows[i].next_check = rbtree_create();
         }
         matcher->rows[i].row_size = 1 << i;
         matcher->rows[i].end_pattern = end_pattern;
@@ -379,7 +379,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                 if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
                     fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
                     if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                        printf("%d!\n", j);
+                        rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
                     }
                 }
 
@@ -390,10 +390,19 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                     if ((matcher->rows[i].count[cur_progression]) && (j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
                         fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
                         if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                            printf("%d!\n", j);
+                            rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
                         }
                     }
                     matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
+                }
+                int check_full = (int)rbtree_lookup(matcher->rows[i].next_check, (void*)j, (void*)-1, compare_int);
+                if (check_full != -1) {
+                    rbtree_delete(matcher->rows[i].next_check, (void*)j, compare_int);
+                    fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[j % matcher->num_patterns], matcher->tmp);
+                    match = hashlookup_search(matcher->rows[i].suffixes[check_full], matcher->tmp, NULL);
+                    if (match != -1) {
+                        printf("%d\n", j);
+                    }
                 }
             }
 
@@ -459,6 +468,7 @@ void dict_matching_free(dict_matcher matcher) {
                 free(matcher->rows[i].complete_f);
                 free(matcher->rows[i].prefix_length);
                 free(matcher->rows[i].progression_location);
+                rbtree_destroy(matcher->rows[i].next_check);
             }
             free(matcher->rows[i].end_pattern);
         }
