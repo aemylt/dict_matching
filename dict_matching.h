@@ -13,24 +13,29 @@
 typedef struct {
     int row_size;
     int num_patterns;
-    int num_complete;
-    int cur_prefix;
     int *period;
     int *count;
     int *first_location;
     int *last_location;
-    int *end_pattern;
-    int *progression_location;
-    int *prefix_length;
     hash_lookup lookup;
-    hash_lookup *suffixes;
     fingerprint *first_print;
     fingerprint *last_print;
     fingerprint *period_f;
-    fingerprint *complete_f;
     rbtree next_progression;
-    rbtree next_check;
 } pattern_row;
+
+typedef struct {
+    int num_prefixes;
+    int num_progressions;
+    int cur_prefix;
+    int *location;
+    int *progression_index;
+    int *prefix_length;
+    int *num_suffixes;
+    fingerprint **suffixes;
+    fingerprint *print;
+    fingerprint *prefix;
+} final_row;
 
 int compare_int(void *leftp, void *rightp) {
     int left = (int)leftp;
@@ -44,31 +49,17 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
     int i = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size, (void*)-1, compare_int);
     if (i != -1) {
         fingerprint_assign(row->first_print[i], finger);
-        if (!row->end_pattern[i]) {
-            if (row->count[i] > 1) {
-                fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
-                fingerprint_assign(tmp, row->first_print[i]);
-                row->first_location[i] += row->period[i];
-                rbtree_insert(row->next_progression, (void*)j - row->row_size + row->period[i], (void*)i, compare_int);
-            }
-            rbtree_delete(row->next_progression, (void*)j - row->row_size, compare_int);
-            row->count[i]--;
+        if (row->count[i] > 1) {
+            fingerprint_concat(printer, row->first_print[i], row->period_f[i], tmp);
+            fingerprint_assign(tmp, row->first_print[i]);
+            row->first_location[i] += row->period[i];
+            rbtree_insert(row->next_progression, (void*)j - row->row_size + row->period[i], (void*)i, compare_int);
         }
+        rbtree_delete(row->next_progression, (void*)j - row->row_size, compare_int);
+        row->count[i]--;
+        return 1;
     }
-    if (row->num_complete) {
-        int del = (int)rbtree_lookup(row->next_progression, (void*)j - row->row_size - row->num_complete, (void*)-1, compare_int);
-        if (del != -1) {
-            if (row->count[del] > 1) {
-                fingerprint_concat(printer, row->first_print[del], row->period_f[del], tmp);
-                fingerprint_assign(tmp, row->first_print[del]);
-                row->first_location[del] += row->period[del];
-                rbtree_insert(row->next_progression, (void*)j - row->row_size - row->num_complete + row->period[del], (void*)del, compare_int);
-            }
-            rbtree_delete(row->next_progression, (void*)j - row->row_size - row->num_complete, compare_int);
-            row->count[del]--;
-        }
-    }
-    return (i != -1) ? 1 : 0;
+    return 0;
 }
 
 void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, int location, int i, fingerprint tmp) {
@@ -107,7 +98,8 @@ typedef struct dict_matcher_t {
     periodic_dict_matcher periodic_matcher;
 
     pattern_row *rows;
-    int num_rows, *end_pattern;
+    final_row final;
+    int num_rows;
     first_lookup first_round;
     fingerprint T_f;
     fingerprint *T_prev;
@@ -159,7 +151,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     }
     matcher->num_rows = 0;
     if (m_max > num_patterns) {
-        while ((1 << matcher->num_rows) <= m_max) {
+        while ((1 << (matcher->num_rows + 1)) < m_max) {
             matcher->num_rows++;
         }
         matcher->rows = malloc(sizeof(pattern_row) * matcher->num_rows);
@@ -185,86 +177,71 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         old_lookup_size = lookup_size;
         lookup_size = 0;
-        int *end_pattern_tmp = malloc(sizeof(int) * num_patterns);
-        int *end_pattern = malloc(sizeof(int) * old_lookup_size);
-        for (i = 0; i < old_lookup_size; i++) {
-            end_pattern[i] = 0;
-        }
-        int *pattern_hash_id = malloc(sizeof(int) * num_patterns);
-        int *progression_location_tmp = malloc(sizeof(int) * num_patterns);
-        int *progression_location = NULL;
-        int *prefix_length_tmp = malloc(sizeof(int) * num_patterns);
-        int *prefix_length = NULL;
-        fingerprint *complete_patterns = malloc(sizeof(fingerprint) * num_patterns);
+        int *end_pattern = malloc(sizeof(int) * num_patterns);
+        int *progression_index = malloc(sizeof(int) * num_patterns);
+        int *prefix_length = malloc(sizeof(int) * num_patterns);
+        fingerprint *prefix = malloc(sizeof(fingerprint) * num_patterns);
         fingerprint **suffixes = malloc(sizeof(fingerprint*) * num_patterns);
         int *num_suffixes = malloc(sizeof(int) * num_patterns);
         for (i = 0; i < num_patterns; i++) {
-            complete_patterns[i] = init_fingerprint();
+            prefix[i] = init_fingerprint();
             suffixes[i] = malloc(sizeof(fingerprint) * num_patterns);
             for (j = 0; j < num_patterns; j++) {
                 suffixes[i][j] = init_fingerprint();
             }
         }
-        int complete_size = 0;
+        int num_prefixes = 0;
+        int num_progressions = 0;
         i = 0;
-        while ((1 << (i + 1)) <= m_max) {
-            matcher->rows[i].num_complete = complete_size;
-            if (complete_size) {
-                matcher->rows[i].complete_f = malloc(sizeof(fingerprint) * complete_size);
-                matcher->rows[i].suffixes = malloc(sizeof(hash_lookup) * complete_size);
-                for (j = 0; j < complete_size; j++) {
-                    matcher->rows[i].complete_f[j] = init_fingerprint();
-                    fingerprint_assign(complete_patterns[j], matcher->rows[i].complete_f[j]);
-                    matcher->rows[i].suffixes[j] = hashlookup_build(suffixes[j], NULL, num_suffixes[j], matcher->printer);
-                }
-                matcher->rows[i].prefix_length = prefix_length;
-                matcher->rows[i].progression_location = progression_location;
-                matcher->rows[i].next_check = rbtree_create();
-            }
+        while ((1 << (i + 1)) < m_max) {
             matcher->rows[i].row_size = 1 << i;
-            matcher->rows[i].end_pattern = end_pattern;
             lookup_size = 0;
-            complete_size = 0;
             for (j = 0; j < num_patterns; j++) {
                 if ((periods[j] > num_patterns) && (m[j] > num_patterns << 1) && (m[j] - num_patterns >= matcher->rows[i].row_size << 1)) {
                     set_fingerprint(matcher->printer, P[j], matcher->rows[i].row_size << 1, patterns[lookup_size]);
                     if (m[j] - num_patterns < (matcher->rows[i].row_size << 2)) {
-                        end_pattern_tmp[lookup_size] = 1;
-                        set_fingerprint(matcher->printer, P[j], m[j] - num_patterns, complete_patterns[complete_size]);
-                        progression_location_tmp[complete_size] = lookup_size;
-                        prefix_length_tmp[complete_size] = m[j] - num_patterns;
-                        num_suffixes[complete_size] = 1;
-                        set_fingerprint(matcher->printer, &P[j][m[j] - num_patterns], num_patterns, suffixes[complete_size][0]);
-                        for (k = 0; k < complete_size; k++) {
-                            if (fingerprint_equals(complete_patterns[k], complete_patterns[complete_size])) {
-                                end_pattern_tmp[lookup_size] = 0;
+                        end_pattern[lookup_size] = num_progressions;
+                        set_fingerprint(matcher->printer, P[j], m[j] - num_patterns, prefix[num_prefixes]);
+                        progression_index[num_prefixes] = num_progressions;
+                        prefix_length[num_prefixes] = m[j] - num_patterns;
+                        num_suffixes[num_prefixes] = 1;
+                        set_fingerprint(matcher->printer, &P[j][m[j] - num_patterns], num_patterns, suffixes[num_prefixes][0]);
+                        for (k = 0; k < num_prefixes; k++) {
+                            if (fingerprint_equals(prefix[k], prefix[num_prefixes])) {
+                                end_pattern[lookup_size] = progression_index[k];
                                 for (l = 0; l < num_suffixes[k]; l++) {
-                                    if (fingerprint_equals(suffixes[k][l], suffixes[complete_size][0])) {
+                                    if (fingerprint_equals(suffixes[k][l], suffixes[num_prefixes][0])) {
                                         break;
                                     }
                                 }
                                 if (l == num_suffixes[k]) {
-                                    fingerprint_assign(suffixes[complete_size][0], suffixes[k][l]);
+                                    fingerprint_assign(suffixes[num_prefixes][0], suffixes[k][l]);
                                     num_suffixes[k]++;
                                 }
                                 break;
                             }
                         }
-                        if (k == complete_size) complete_size++;
+                        if (k == num_prefixes) num_prefixes++;
                     } else {
-                        end_pattern_tmp[lookup_size] = 0;
+                        end_pattern[lookup_size] = -1;
                     }
                     for (k = 0; k < lookup_size; k++) {
                         if (fingerprint_equals(patterns[k], patterns[lookup_size])) {
-                            end_pattern_tmp[k] |= end_pattern_tmp[lookup_size];
-                            if (end_pattern_tmp[lookup_size]) progression_location_tmp[complete_size - 1] = k;
+                            if ((end_pattern[k] == -1) && (end_pattern[lookup_size] != -1)) {
+                                end_pattern[k] = end_pattern[lookup_size];
+                                num_progressions++;
+                            }
+                            else if (end_pattern[lookup_size] != -1) progression_index[num_prefixes - 1] = end_pattern[k];
                             break;
                         }
                     }
-                    if (k == lookup_size) lookup_size++;
+                    if (k == lookup_size) {
+                        lookup_size++;
+                        if (end_pattern[lookup_size] != -1) num_progressions++;
+                    }
                 }
             }
-            matcher->rows[i].lookup = hashlookup_build(patterns, NULL, lookup_size, matcher->printer);
+            matcher->rows[i].lookup = hashlookup_build(patterns, end_pattern, lookup_size, matcher->printer);
             matcher->rows[i].num_patterns = old_lookup_size;
             matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
             matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
@@ -274,7 +251,6 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
             matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
             matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
             matcher->rows[i].next_progression = rbtree_create();
-            matcher->rows[i].cur_prefix = 0;
             for (j = 0; j < old_lookup_size; j++) {
                 matcher->rows[i].first_print[j] = init_fingerprint();
                 matcher->rows[i].first_location[j] = 0;
@@ -285,66 +261,45 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
                 matcher->rows[i].period_f[j] = init_fingerprint();
             }
             old_lookup_size = lookup_size;
-            end_pattern = malloc(sizeof(int) * lookup_size);
-            for (j = 0; j < lookup_size; j++) {
-                int location = hashlookup_search(matcher->rows[i].lookup, patterns[j], NULL);
-                pattern_hash_id[j] = location;
-                end_pattern[location] = end_pattern_tmp[j];
-            }
-            if (complete_size) {
-                prefix_length = malloc(sizeof(int) * complete_size);
-                progression_location = malloc(sizeof(int) * complete_size);
-                for (j = 0; j < complete_size; j++) {
-                    progression_location[j] = pattern_hash_id[progression_location_tmp[j]];
-                    prefix_length[j] = prefix_length_tmp[j];
-                }
-            }
             i++;
         }
-        matcher->rows[i].num_complete = complete_size;
-        if (complete_size) {
-            matcher->rows[i].complete_f = malloc(sizeof(fingerprint) * complete_size);
-            matcher->rows[i].suffixes = malloc(sizeof(hash_lookup) * complete_size);
-            for (j = 0; j < complete_size; j++) {
-                matcher->rows[i].complete_f[j] = init_fingerprint();
-                fingerprint_assign(complete_patterns[j], matcher->rows[i].complete_f[j]);
-                matcher->rows[i].suffixes[j] = hashlookup_build(suffixes[j], NULL, num_suffixes[j], matcher->printer);
-            }
-            matcher->rows[i].prefix_length = prefix_length;
-            matcher->rows[i].progression_location = progression_location;
-            matcher->rows[i].next_check = rbtree_create();
+
+        matcher->final.num_prefixes = num_prefixes;
+        matcher->final.num_progressions = num_progressions;
+        matcher->final.cur_prefix = 0;
+        matcher->final.location = malloc(sizeof(int) * num_progressions);
+        matcher->final.progression_index = malloc(sizeof(int) * num_prefixes);
+        matcher->final.prefix_length = malloc(sizeof(int) * num_prefixes);
+        matcher->final.num_suffixes = malloc(sizeof(int) * num_prefixes);
+        matcher->final.suffixes = malloc(sizeof(fingerprint*) * num_prefixes);
+        matcher->final.prefix = malloc(sizeof(fingerprint) * num_prefixes);
+        matcher->final.print = malloc(sizeof(fingerprint) * num_progressions);
+        for (i = 0; i < num_progressions; i++) {
+            matcher->final.print[i] = init_fingerprint();
+            matcher->final.location[i] = 0;
         }
-        matcher->rows[i].row_size = 1 << i;
-        matcher->rows[i].end_pattern = end_pattern;
-        matcher->rows[i].num_patterns = old_lookup_size;
-        matcher->rows[i].first_print = malloc(sizeof(fingerprint) * old_lookup_size);
-        matcher->rows[i].first_location = malloc(sizeof(int) * old_lookup_size);
-        matcher->rows[i].last_print = malloc(sizeof(fingerprint) * old_lookup_size);
-        matcher->rows[i].last_location = malloc(sizeof(int) * old_lookup_size);
-        matcher->rows[i].period = malloc(sizeof(int) * old_lookup_size);
-        matcher->rows[i].count = malloc(sizeof(int) * old_lookup_size);
-        matcher->rows[i].period_f = malloc(sizeof(fingerprint) * old_lookup_size);
-        matcher->rows[i].next_progression = rbtree_create();
-        matcher->rows[i].cur_prefix = 0;
-        for (j = 0; j < old_lookup_size; j++) {
-            matcher->rows[i].first_print[j] = init_fingerprint();
-            matcher->rows[i].first_location[j] = 0;
-            matcher->rows[i].last_print[j] = init_fingerprint();
-            matcher->rows[i].last_location[j] = 0;
-            matcher->rows[i].period[j] = 0;
-            matcher->rows[i].count[j] = 0;
-            matcher->rows[i].period_f[j] = init_fingerprint();
+        for (i = 0; i < num_prefixes; i++) {
+            matcher->final.progression_index[i] = progression_index[i];
+            matcher->final.prefix_length[i] = prefix_length[i];
+            matcher->final.num_suffixes[i] = num_suffixes[i];
+            matcher->final.suffixes[i] = malloc(sizeof(fingerprint) * num_suffixes[i]);
+            for (j = 0; j < num_suffixes[i]; j++) {
+                matcher->final.suffixes[i][j] = init_fingerprint();
+                fingerprint_assign(suffixes[i][j], matcher->final.suffixes[i][j]);
+            }
+            matcher->final.prefix[i] = init_fingerprint();
+            fingerprint_assign(prefix[i], matcher->final.prefix[i]);
         }
 
         for (i = 0; i < num_patterns; i++) {
             fingerprint_free(patterns[i]);
         }
         free(patterns);
-        free(end_pattern_tmp);
-        free(progression_location_tmp);
-        free(prefix_length_tmp);
+        free(end_pattern);
+        free(progression_index);
+        free(prefix_length);
         for (i = 0; i < num_patterns; i++) {
-            fingerprint_free(complete_patterns[i]);
+            fingerprint_free(prefix[i]);
             for (j = 0; j < num_patterns; j++) {
                 fingerprint_free(suffixes[i][j]);
             }
@@ -352,7 +307,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         }
         free(suffixes);
         free(num_suffixes);
-        free(complete_patterns);
+        free(prefix);
     }
 
     matcher->short_matcher = short_dict_matching_build(num_patterns, matcher->printer, P, m);
@@ -376,50 +331,18 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     if (matcher->num_rows) {
         int i, occurance, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
-            if (matcher->rows[i].num_complete) {
-                int cur_prefix = matcher->rows[i].cur_prefix;
-                int cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                if (matcher->rows[i].count[cur_progression]) {
-                    int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
-                    if ((j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                        fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
-                        if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                            rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
-                        }
-                    }
-                }
-
-                if (matcher->rows[i].num_complete > 1) {
-                    if (++cur_prefix == matcher->rows[i].num_complete) cur_prefix = 0;
-                    cur_progression = matcher->rows[i].progression_location[cur_prefix];
-                    if (matcher->rows[i].count[cur_progression]) {
-                        int test_location = matcher->rows[i].first_location[cur_progression] - matcher->rows[i].row_size + matcher->rows[i].prefix_length[cur_prefix];
-                        if ((j > test_location) && (test_location >= j - matcher->rows[i].num_complete)) {
-                            fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->rows[i].first_print[cur_progression], matcher->tmp);
-                            if (fingerprint_equals(matcher->tmp, matcher->rows[i].complete_f[cur_prefix])) {
-                                rbtree_insert(matcher->rows[i].next_check, (void*)(test_location + matcher->num_patterns), (void*)cur_prefix, compare_int);
-                            }
-                        }
-                        matcher->rows[i].cur_prefix = (++cur_prefix == matcher->rows[i].num_complete) ? 0 : cur_prefix;
-                    }
-                }
-                int check_full = (int)rbtree_lookup(matcher->rows[i].next_check, (void*)j, (void*)-1, compare_int);
-                if (check_full != -1) {
-                    rbtree_delete(matcher->rows[i].next_check, (void*)j, compare_int);
-                    fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[j % matcher->num_patterns], matcher->tmp);
-                    match = hashlookup_search(matcher->rows[i].suffixes[check_full], matcher->tmp, NULL);
-                    if (match != -1) {
-                        result = j;
-                    }
-                }
-            }
-
             occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
-            if ((i < matcher->num_rows - 1) && (occurance)) {
+            if (occurance) {
                 fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
-                match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, NULL);
+                int final;
+                match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, &final);
                 if (match != -1) {
-                    add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
+                    if (i < matcher->num_rows - 1) {
+                        add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
+                    }
+                    if (final != -1) {
+                        printf("%d\n", j);
+                    }
                 }
             }
         }
@@ -466,22 +389,27 @@ void dict_matching_free(dict_matcher matcher) {
             free(matcher->rows[i].count);
             rbtree_destroy(matcher->rows[i].next_progression);
 
-            if (i != matcher->num_rows - 1) hashlookup_free(&matcher->rows[i].lookup);
-
-            if (matcher->rows[i].num_complete) {
-                for (j = 0; j < matcher->rows[i].num_complete; j++) {
-                    fingerprint_free(matcher->rows[i].complete_f[j]);
-                    hashlookup_free(&matcher->rows[i].suffixes[j]);
-                }
-                free(matcher->rows[i].suffixes);
-                free(matcher->rows[i].complete_f);
-                free(matcher->rows[i].prefix_length);
-                free(matcher->rows[i].progression_location);
-                rbtree_destroy(matcher->rows[i].next_check);
-            }
-            free(matcher->rows[i].end_pattern);
+            hashlookup_free(&matcher->rows[i].lookup);
         }
         free(matcher->rows);
+
+        free(matcher->final.location);
+        free(matcher->final.progression_index);
+        free(matcher->final.prefix_length);
+        for (i = 0; i < matcher->final.num_progressions; i++) {
+            fingerprint_free(matcher->final.print[i]);
+        }
+        free(matcher->final.print);
+        for (i = 0; i < matcher->final.num_prefixes; i++) {
+            for (j = 0; j < matcher->final.num_suffixes[i]; j++) {
+                fingerprint_free(matcher->final.suffixes[i][j]);
+            }
+            free(matcher->final.suffixes[i]);
+            fingerprint_free(matcher->final.prefix[i]);
+        }
+        free(matcher->final.num_suffixes);
+        free(matcher->final.suffixes);
+        free(matcher->final.prefix);
     }
 
     short_dict_matching_free(matcher->short_matcher);
