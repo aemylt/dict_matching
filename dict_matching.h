@@ -29,6 +29,7 @@ typedef struct {
     int num_progressions;
     int cur_prefix;
     int *location;
+    int *count;
     int *progression_index;
     int *prefix_length;
     int *num_suffixes;
@@ -268,6 +269,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->final.num_progressions = num_progressions;
         matcher->final.cur_prefix = 0;
         matcher->final.location = malloc(sizeof(int) * num_progressions);
+        matcher->final.count = malloc(sizeof(int) * num_progressions);
         matcher->final.progression_index = malloc(sizeof(int) * num_prefixes);
         matcher->final.prefix_length = malloc(sizeof(int) * num_prefixes);
         matcher->final.num_suffixes = malloc(sizeof(int) * num_prefixes);
@@ -276,7 +278,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->final.print = malloc(sizeof(fingerprint) * num_progressions);
         for (i = 0; i < num_progressions; i++) {
             matcher->final.print[i] = init_fingerprint();
-            matcher->final.location[i] = -1;
+            matcher->final.count[i] = 0;
         }
         for (i = 0; i < num_prefixes; i++) {
             matcher->final.progression_index[i] = progression_index[i];
@@ -331,21 +333,27 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     if (matcher->num_rows) {
         int cur_prefix = matcher->final.cur_prefix;
         int cur_progression = matcher->final.progression_index[cur_prefix];
-        int test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
-        if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
-            fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
-            if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                printf("%d %d\n", test_location, j);
+        if (matcher->final.count[cur_progression]) {
+            int test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+            if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
+                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
+                if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
+                    printf("%d %d\n", test_location + matcher->num_patterns, test_location + matcher->num_patterns - j);
+                }
+                matcher->final.count[cur_progression] = 0;
             }
         }
         if (matcher->final.num_prefixes > 1) {
             if (++cur_prefix == matcher->final.num_prefixes) cur_prefix = 0;
             cur_progression = matcher->final.progression_index[cur_prefix];
-            int test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
-            if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
-                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
-                if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                    printf("%d %d\n", test_location, j);
+            if (matcher->final.count[cur_progression]) {
+                int test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+                if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
+                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
+                    if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
+                        printf("%d %d\n", test_location + matcher->num_patterns, test_location + matcher->num_patterns - j);
+                    }
+                    matcher->final.count[cur_progression] = 0;
                 }
             }
             matcher->final.cur_prefix = (++cur_prefix == matcher->final.num_prefixes) ? 0 : cur_prefix;
@@ -364,6 +372,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                     }
                     if (final != -1) {
                         matcher->final.location[final] = j - (matcher->rows[i].row_size << 1);
+                        matcher->final.count[final] = 1;
                         fingerprint_assign(matcher->current, matcher->final.print[final]);
                     }
                 }
@@ -417,6 +426,7 @@ void dict_matching_free(dict_matcher matcher) {
         free(matcher->rows);
 
         free(matcher->final.location);
+        free(matcher->final.count);
         free(matcher->final.progression_index);
         free(matcher->final.prefix_length);
         for (i = 0; i < matcher->final.num_progressions; i++) {
