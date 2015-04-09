@@ -28,12 +28,17 @@ typedef struct {
     int num_prefixes;
     int num_progressions;
     int cur_prefix;
-    int *location;
+    int *first_location;
+    int *last_location;
+    int *period;
+    int *count;
     int *progression_index;
     int *prefix_length;
     int *num_suffixes;
     fingerprint **suffixes;
-    fingerprint *print;
+    fingerprint *first_print;
+    fingerprint *last_print;
+    fingerprint *period_f;
     fingerprint *prefix;
     rbtree *suffix_tree;
 } final_row;
@@ -274,19 +279,27 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->final.num_prefixes = num_prefixes;
         matcher->final.num_progressions = num_progressions;
         matcher->final.cur_prefix = 0;
-        matcher->final.location = malloc(sizeof(int) * num_progressions);
+        matcher->final.first_location = malloc(sizeof(int) * num_progressions);
+        matcher->final.last_location = malloc(sizeof(int) * num_progressions);
+        matcher->final.period = malloc(sizeof(int) * num_progressions);
+        matcher->final.count = malloc(sizeof(int) * num_progressions);
+        matcher->final.first_print = malloc(sizeof(fingerprint) * num_progressions);
+        matcher->final.last_print = malloc(sizeof(fingerprint) * num_progressions);
+        matcher->final.period_f = malloc(sizeof(fingerprint) * num_progressions);
         matcher->final.progression_index = malloc(sizeof(int) * num_prefixes);
         matcher->final.prefix_length = malloc(sizeof(int) * num_prefixes);
         matcher->final.num_suffixes = malloc(sizeof(int) * num_prefixes);
         matcher->final.suffixes = malloc(sizeof(fingerprint*) * num_prefixes);
         matcher->final.prefix = malloc(sizeof(fingerprint) * num_prefixes);
-        matcher->final.print = malloc(sizeof(fingerprint) * num_progressions);
         matcher->final.suffix_tree = malloc(sizeof(rbtree) * num_patterns);
         for (i = 0; i < num_patterns; i++) {
             matcher->final.suffix_tree[i] = rbtree_create();
         }
         for (i = 0; i < num_progressions; i++) {
-            matcher->final.print[i] = init_fingerprint();
+            matcher->final.count[i] = 0;
+            matcher->final.first_print[i] = init_fingerprint();
+            matcher->final.last_print[i] = init_fingerprint();
+            matcher->final.period_f[i] = init_fingerprint();
         }
         for (i = 0; i < num_prefixes; i++) {
             matcher->final.progression_index[i] = progression_index[i];
@@ -342,24 +355,46 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         int i;
         int cur_prefix = matcher->final.cur_prefix;
         int cur_progression = matcher->final.progression_index[cur_prefix];
-        int test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
-        if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
-            fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
-            if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
-                    rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+        if (matcher->final.count[cur_progression]) {
+            int test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+            if (test_location + matcher->final.num_prefixes < j) {
+                if (matcher->final.count[cur_progression] > 1) {
+                    fingerprint_concat(matcher->printer, matcher->final.first_print[cur_progression], matcher->final.period_f[cur_progression], matcher->tmp);
+                    fingerprint_assign(matcher->tmp, matcher->final.first_print[cur_progression]);
+                    matcher->final.first_location[cur_progression] += matcher->final.period[cur_progression];
+                }
+                matcher->final.count[cur_progression]--;
+                test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+            }
+            if ((matcher->final.count[cur_progression]) && (test_location < j)) {
+                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.first_print[cur_progression], matcher->tmp);
+                if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
+                    for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
+                        rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+                    }
                 }
             }
         }
         if (matcher->final.num_prefixes > 1) {
             if (++cur_prefix == matcher->final.num_prefixes) cur_prefix = 0;
             cur_progression = matcher->final.progression_index[cur_prefix];
-            test_location = matcher->final.location[cur_progression] + matcher->final.prefix_length[cur_prefix];
-            if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
-                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
-                if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                    for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
-                        rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+            if (matcher->final.count[cur_progression]) {
+                int test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+                if (test_location + matcher->final.num_prefixes < j) {
+                    if (matcher->final.count[cur_progression] > 1) {
+                        fingerprint_concat(matcher->printer, matcher->final.first_print[cur_progression], matcher->final.period_f[cur_progression], matcher->tmp);
+                        fingerprint_assign(matcher->tmp, matcher->final.first_print[cur_progression]);
+                        matcher->final.first_location[cur_progression] += matcher->final.period[cur_progression];
+                    }
+                    matcher->final.count[cur_progression]--;
+                    test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
+                }
+                if ((matcher->final.count[cur_progression]) && (test_location < j)) {
+                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.first_print[cur_progression], matcher->tmp);
+                    if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
+                        for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
+                            rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+                        }
                     }
                 }
             }
@@ -386,8 +421,30 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                         add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
                     }
                     if (final != -1) {
-                        matcher->final.location[final] = j - (matcher->rows[i].row_size << 1);
-                        fingerprint_assign(matcher->current, matcher->final.print[final]);
+                        int location = j - (matcher->rows[i].row_size << 1);
+                        if (matcher->final.count[final]) {
+                            if (matcher->final.count[final] == 1) {
+                                matcher->final.period[final] = location - matcher->final.first_location[final];
+                                fingerprint_suffix(matcher->printer, matcher->current, matcher->final.first_print[final], matcher->final.period_f[final]);
+                                matcher->final.last_location[final] = location;
+                                fingerprint_assign(matcher->current, matcher->final.last_print[final]);
+                                matcher->final.count[final] = 2;
+                            } else {
+                                fingerprint_suffix(matcher->printer, matcher->current, matcher->final.last_print[final], matcher->tmp);
+                                int period = location - matcher->final.last_location[final];
+                                if ((period == matcher->final.period[final]) && (fingerprint_equals(matcher->tmp, matcher->final.period_f[final]))) {
+                                    matcher->final.last_location[final] = location;
+                                    fingerprint_assign(matcher->current, matcher->final.last_print[final]);
+                                    matcher->final.count[final]++;
+                                } else {
+                                    fprintf(stderr, "Warning: Non-Periodic occurance at %d. Occurance ignored.\n", location);
+                                }
+                            }
+                        } else {
+                            fingerprint_assign(matcher->current, matcher->final.first_print[final]);
+                            matcher->final.first_location[final] = location;
+                            matcher->final.count[final] = 1;
+                        }
                     }
                 }
             }
@@ -439,13 +496,19 @@ void dict_matching_free(dict_matcher matcher) {
         }
         free(matcher->rows);
 
-        free(matcher->final.location);
+        free(matcher->final.first_location);
+        free(matcher->final.last_location);
+        free(matcher->final.period);
         free(matcher->final.progression_index);
         free(matcher->final.prefix_length);
         for (i = 0; i < matcher->final.num_progressions; i++) {
-            fingerprint_free(matcher->final.print[i]);
+            fingerprint_free(matcher->final.first_print[i]);
+            fingerprint_free(matcher->final.last_print[i]);
+            fingerprint_free(matcher->final.period_f[i]);
         }
-        free(matcher->final.print);
+        free(matcher->final.first_print);
+        free(matcher->final.last_print);
+        free(matcher->final.period_f);
         for (i = 0; i < matcher->final.num_prefixes; i++) {
             for (j = 0; j < matcher->final.num_suffixes[i]; j++) {
                 fingerprint_free(matcher->final.suffixes[i][j]);
