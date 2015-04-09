@@ -36,6 +36,7 @@ typedef struct {
     fingerprint **suffixes;
     fingerprint *print;
     fingerprint *prefix;
+    rbtree *suffix_tree;
 } final_row;
 
 int compare_int(void *leftp, void *rightp) {
@@ -44,6 +45,12 @@ int compare_int(void *leftp, void *rightp) {
     if (left < right) return -1;
     else if (left > right) return 1;
     else return 0;
+}
+
+int compare_finger(void *leftp, void *rightp) {
+    fingerprint left = (fingerprint)leftp;
+    fingerprint right = (fingerprint)rightp;
+    return fingerprint_cmp(left, right);
 }
 
 int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j, fingerprint tmp) {
@@ -276,6 +283,10 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         matcher->final.suffixes = malloc(sizeof(fingerprint*) * num_prefixes);
         matcher->final.prefix = malloc(sizeof(fingerprint) * num_prefixes);
         matcher->final.print = malloc(sizeof(fingerprint) * num_progressions);
+        matcher->final.suffix_tree = malloc(sizeof(rbtree) * num_patterns);
+        for (i = 0; i < num_patterns; i++) {
+            matcher->final.suffix_tree[i] = rbtree_create();
+        }
         for (i = 0; i < num_progressions; i++) {
             matcher->final.print[i] = init_fingerprint();
             matcher->final.count[i] = 0;
@@ -331,6 +342,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     int result = -1, short_result, periodic_result;
 
     if (matcher->num_rows) {
+        int i;
         int cur_prefix = matcher->final.cur_prefix;
         int cur_progression = matcher->final.progression_index[cur_prefix];
         if (matcher->final.count[cur_progression]) {
@@ -338,7 +350,9 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
                 fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
                 if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                    printf("%d %d\n", test_location + matcher->num_patterns, test_location + matcher->num_patterns - j);
+                    for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
+                        rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+                    }
                 }
                 matcher->final.count[cur_progression] = 0;
             }
@@ -351,7 +365,9 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                 if ((test_location < j) && (test_location + matcher->final.num_prefixes >= j)) {
                     fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.print[cur_progression], matcher->tmp);
                     if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
-                        printf("%d %d\n", test_location + matcher->num_patterns, test_location + matcher->num_patterns - j);
+                        for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
+                            rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
+                        }
                     }
                     matcher->final.count[cur_progression] = 0;
                 }
@@ -359,7 +375,15 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             matcher->final.cur_prefix = (++cur_prefix == matcher->final.num_prefixes) ? 0 : cur_prefix;
         }
 
-        int i, occurance, match;
+        fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[j % matcher->num_patterns], matcher->tmp);
+        int suffix_match = (int)rbtree_lookup(matcher->final.suffix_tree[j % matcher->num_patterns], matcher->tmp, (void*)0, compare_finger);
+        if (suffix_match) {
+            result = j;
+        }
+        rbtree_destroy(matcher->final.suffix_tree[j % matcher->num_patterns]);
+        matcher->final.suffix_tree[j % matcher->num_patterns] = rbtree_create();
+
+        int occurance, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
             occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
             if (occurance) {
@@ -443,6 +467,10 @@ void dict_matching_free(dict_matcher matcher) {
         free(matcher->final.num_suffixes);
         free(matcher->final.suffixes);
         free(matcher->final.prefix);
+        for (i = 0; i < matcher->num_patterns; i++) {
+            rbtree_destroy(matcher->final.suffix_tree[i]);
+        }
+        free(matcher->final.suffix_tree);
     }
 
     short_dict_matching_free(matcher->short_matcher);
