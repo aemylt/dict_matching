@@ -257,6 +257,21 @@ int fingerprint_equals(fingerprint T_f, fingerprint P_f) {
 }
 
 /*
+    fingerprint_cmp
+    Compares two fingerprints
+    Parameters:
+        fingerprint T_f - The first fingerprint
+        fingerprint P_f - The second fingerprint
+    Returns int:
+        Positive if T_f > P_f
+        0 if T_f = P_f
+        Negative if T_f < P_f
+*/
+int fingerprint_cmp(fingerprint T_f, fingerprint P_f) {
+    return mpz_cmp(T_f->finger, P_f->finger);
+}
+
+/*
     fingerprint_free
     Frees a fingerprint from memory.
     Parameters:
