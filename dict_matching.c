@@ -209,7 +209,7 @@ void test_all_short_patterns_plus_powers_of_two() {
     n = 66;
     num_patterns = 9;
     m = malloc(sizeof(int) * num_patterns);
-    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4; m[4] = 5; m[5] = 6; m[6] = 7; m[7] = 32; m[8] = 64;
+    m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4; m[4] = 5; m[5] = 6; m[6] = 7; m[7] = 64; m[8] = 32;
     build_up();
     strcpy(P[0], "a");
     strcpy(P[1], "ab");
@@ -218,8 +218,8 @@ void test_all_short_patterns_plus_powers_of_two() {
     strcpy(P[4], "abcde");
     strcpy(P[5], "abcdef");
     strcpy(P[6], "abcdefg");
-    strcpy(P[7], "cdefghijklmnopqrcdefghijklmnopqr");
-    strcpy(P[8], "cdefghijklmnopqrcdefghijklmnopqrdefghijklmnopqrcdefghijklmnopqrs");
+    strcpy(P[7], "cdefghijklmnopqrcdefghijklmnopqrdefghijklmnopqrcdefghijklmnopqrs");
+    strcpy(P[8], "cdefghijklmnopqrcdefghijklmnopqr");
     correct[0]  =  0; correct[1]  =  1; correct[2]  =  2; correct[3]  =  3; correct[4]  =  4; correct[5]  =  5;
     correct[6]  =  6; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
     correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
