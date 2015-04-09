@@ -134,8 +134,10 @@ void hashlookup_free(hash_lookup *lookup) {
     } else if (lookup->num == 1) {
         fingerprint_free(lookup->keys[0]);
     }
-    free(lookup->keys);
-    if (lookup->end_pattern) free(lookup->end_pattern);
+    if (lookup->num) {
+        free(lookup->keys);
+        if (lookup->end_pattern) free(lookup->end_pattern);
+    }
 }
 
 #endif
