@@ -156,8 +156,8 @@ void test_single_long_period() {
     correct[6]  = -1; correct[7]  = -1; correct[8]  = -1; correct[9]  = -1; correct[10] = -1; correct[11] = -1;
     correct[12] = -1; correct[13] = -1; correct[14] = -1; correct[15] = -1; correct[16] = -1; correct[17] = -1;
     correct[18] = -1; correct[19] = -1; correct[20] = -1; correct[21] = -1; correct[22] = -1; correct[23] = -1;
-    correct[24] = -1; correct[25] = -1; correct[26] = -1; correct[27] = -1; correct[28] = -1; correct[29] = 29;
-    stream_test("abababaaababbbbbababbababababa");
+    correct[24] = -1; correct[25] = 25; correct[26] = -1; correct[27] = 27; correct[28] = -1; correct[29] = 29;
+    stream_test("abababaaababbbbbaababababababa");
     tear_down();
 }
 
