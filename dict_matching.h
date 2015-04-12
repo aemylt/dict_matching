@@ -432,12 +432,16 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                             } else {
                                 fingerprint_suffix(matcher->printer, matcher->current, matcher->final.last_print[final], matcher->tmp);
                                 int period = location - matcher->final.last_location[final];
-                                if ((period == matcher->final.period[final]) && (fingerprint_equals(matcher->tmp, matcher->final.period_f[final]))) {
-                                    matcher->final.last_location[final] = location;
-                                    fingerprint_assign(matcher->current, matcher->final.last_print[final]);
-                                    matcher->final.count[final]++;
+                                if (period >= matcher->num_patterns) {
+                                    if ((period == matcher->final.period[final]) && (fingerprint_equals(matcher->tmp, matcher->final.period_f[final]))) {
+                                        matcher->final.last_location[final] = location;
+                                        fingerprint_assign(matcher->current, matcher->final.last_print[final]);
+                                        matcher->final.count[final]++;
+                                    } else {
+                                        fprintf(stderr, "Warning: Non-Periodic occurance at %d. Occurance ignored.\n", location);
+                                    }
                                 } else {
-                                    fprintf(stderr, "Warning: Non-Periodic occurance at %d. Occurance ignored.\n", location);
+                                    fprintf(stderr, "Warning: Prefix has period less than number of patterns. Occurance at %d ignored.\n", location);
                                 }
                             }
                         } else {
