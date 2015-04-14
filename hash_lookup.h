@@ -9,6 +9,7 @@
 
 #include <cmph.h>
 #include <gmp.h>
+#include <assert.h>
 #include <stdlib.h>
 #include "karp_rabin.h"
 
@@ -45,7 +46,7 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
     lookup.num = num;
 
     if (num > 1) {
-        int size = printer->p->_mp_size * 8 + 1;
+        int size = (printer->p->_mp_size + 1) * 8 + 1;
         char **keys = malloc(sizeof(char*) * num);
         int i;
         int *sizes = malloc(sizeof(int) * num);
@@ -64,14 +65,21 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
         if (end_pattern) lookup.end_pattern = malloc(sizeof(int) * num);
         else lookup.end_pattern = NULL;
         int location;
+        int *visited = malloc(sizeof(int) * num);
+        for (i = 0; i < num; i++) {
+            visited[i] = -1;
+        }
         for (i = 0; i < num; i++) {
             location = cmph_search(lookup.hash, keys[i], sizes[i]);
             lookup.keys[location] = init_fingerprint();
+            assert(visited[location] == -1); //Check for collisions
+            visited[location] = i;
             fingerprint_assign(prints[i], lookup.keys[location]);
             free(keys[i]);
             if (end_pattern) lookup.end_pattern[location] = end_pattern[i];
         }
         free(keys);
+        free(visited);
         lookup.key_size = size;
         lookup.last_key = malloc(sizeof(char) * size);
     } else if (num == 1) {
