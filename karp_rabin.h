@@ -86,9 +86,9 @@ fingerprinter fingerprinter_build(unsigned int n, unsigned int alpha) {
     gmp_randseed_ui(state, seed);
 
     mpz_init(printer->r);
-    mpz_sub_ui(printer->r, printer->p, 1);
+    mpz_sub_ui(printer->r, printer->p, 2);
     mpz_urandomm(printer->r, state, printer->r);
-    mpz_add_ui(printer->r, printer->r, 1);
+    mpz_add_ui(printer->r, printer->r, 2);
 
     return printer;
 }
