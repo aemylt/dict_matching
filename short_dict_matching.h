@@ -116,7 +116,7 @@ int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, 
         }
         if (result == -1) {
             middle = start;
-            if (middle <= state->k) {
+            if (middle <= (state->k << 1)) {
                 fingerprint_suffix(printer, t_f, t_prev[GET_INDEX(state->k, middle, j)], tmp);
                 found = hashlookup_search(state->lookup, tmp, &match);
                 if (match) {
