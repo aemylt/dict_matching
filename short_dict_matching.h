@@ -4,7 +4,7 @@
 #include "karp_rabin.h"
 #include "hash_lookup.h"
 
-#define GET_INDEX(k, m, start) ((start + k - m) % k)
+#define GET_INDEX(k, m, start) ((start + (k << 1) - m) % (k << 1))
 
 typedef struct short_dict_matcher_t {
     hash_lookup lookup;
@@ -34,7 +34,7 @@ int suffix(char *t, int n, char **p, int *m, int num_patterns) {
 short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char **p, int *m) {
     short_dict_matcher state = malloc(sizeof(struct short_dict_matcher_t));
     int i, j, k_p = 1;
-    while (k_p < k) {
+    while (k_p < (k << 1)) {
         k_p <<= 1;
     }
     state->k = k;
@@ -48,7 +48,7 @@ short_dict_matcher short_dict_matching_build(int k, fingerprinter printer, char 
 
     int num_prints = 0, x, y;
     for (i = 0; i < k; i++) {
-        if (m[i] <= k) {
+        if (m[i] <= (k << 1)) {
             x = k_p >> 1;
             y = m[i];
             while (x != 0) {
@@ -99,7 +99,7 @@ int short_dict_matching_stream(short_dict_matcher state, fingerprinter printer, 
     if (state->num_prints) {
         while (start < end) {
             middle = (start + end) / 2;
-            if (middle <= state->k) {
+            if (middle <= (state->k << 1)) {
                 fingerprint_suffix(printer, t_f, t_prev[GET_INDEX(state->k, middle, j)], tmp);
                 found = hashlookup_search(state->lookup, tmp, &match);
                 if (match) {

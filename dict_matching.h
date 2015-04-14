@@ -336,8 +336,8 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     matcher->short_matcher = short_dict_matching_build(num_patterns, matcher->printer, P, m);
     matcher->periodic_matcher = periodic_dict_matching_build(P, m, periods, num_patterns, matcher->printer);
 
-    matcher->T_prev = malloc(sizeof(fingerprint) * num_patterns);
-    for (i = 0; i < num_patterns; i++) {
+    matcher->T_prev = malloc(sizeof(fingerprint) * (num_patterns << 1));
+    for (i = 0; i < (num_patterns << 1); i++) {
         matcher->T_prev[i] = init_fingerprint();
     }
 
@@ -367,7 +367,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                 test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
             }
             if ((matcher->final.count[cur_progression]) && (test_location < j)) {
-                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.first_print[cur_progression], matcher->tmp);
+                fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % (matcher->num_patterns << 1)], matcher->final.first_print[cur_progression], matcher->tmp);
                 if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
                     for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
                         rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
@@ -390,7 +390,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                     test_location = matcher->final.first_location[cur_progression] + matcher->final.prefix_length[cur_prefix];
                 }
                 if ((matcher->final.count[cur_progression]) && (test_location < j)) {
-                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % matcher->num_patterns], matcher->final.first_print[cur_progression], matcher->tmp);
+                    fingerprint_suffix(matcher->printer, matcher->T_prev[test_location % (matcher->num_patterns << 1)], matcher->final.first_print[cur_progression], matcher->tmp);
                     if (fingerprint_equals(matcher->tmp, matcher->final.prefix[cur_prefix])) {
                         for (i = 0; i < matcher->final.num_suffixes[cur_prefix]; i++) {
                             rbtree_insert(matcher->final.suffix_tree[test_location % matcher->num_patterns], matcher->final.suffixes[cur_prefix][i], (void*)1, compare_finger);
@@ -401,7 +401,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
             matcher->final.cur_prefix = (++cur_prefix == matcher->final.num_prefixes) ? 0 : cur_prefix;
         }
 
-        fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[j % matcher->num_patterns], matcher->tmp);
+        fingerprint_suffix(matcher->printer, matcher->T_f, matcher->T_prev[(j + matcher->num_patterns) % (matcher->num_patterns << 1)], matcher->tmp);
         int suffix_match = (int)rbtree_lookup(matcher->final.suffix_tree[j % matcher->num_patterns], matcher->tmp, (void*)0, compare_finger);
         if (suffix_match) {
             result = j;
@@ -455,9 +455,9 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         }
 
         int first_round = firstlookup_search(matcher->first_round, T_j);
-        int index = j % matcher->num_patterns;
+        int index = j % (matcher->num_patterns << 1);
         if (first_round != -1) {
-            int prev_index = (index) ? index - 1 : matcher->num_patterns - 1;
+            int prev_index = (index) ? index - 1 : (matcher->num_patterns << 1) - 1;
             add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev[prev_index], j, first_round, matcher->tmp);
         }
     }
@@ -465,7 +465,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
     short_result = short_dict_matching_stream(matcher->short_matcher, matcher->printer, matcher->T_f, matcher->T_prev, matcher->tmp, j);
     periodic_result = periodic_dict_matching_stream(matcher->periodic_matcher, matcher->printer, matcher->T_f, matcher->T_prev, matcher->tmp, j);
 
-    fingerprint_assign(matcher->T_f, matcher->T_prev[j % matcher->num_patterns]);
+    fingerprint_assign(matcher->T_f, matcher->T_prev[j % (matcher->num_patterns << 1)]);
     return ((result != -1) || (short_result != -1) || (periodic_result != -1)) ? j : -1;
 }
 
@@ -532,7 +532,7 @@ void dict_matching_free(dict_matcher matcher) {
     short_dict_matching_free(matcher->short_matcher);
     periodic_dict_matching_free(matcher->periodic_matcher);
 
-    for (i = 0; i < matcher->num_patterns; i++) {
+    for (i = 0; i < (matcher->num_patterns << 1); i++) {
         fingerprint_free(matcher->T_prev[i]);
     }
     free(matcher->T_prev);
