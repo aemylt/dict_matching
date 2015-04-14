@@ -46,7 +46,7 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
     lookup.num = num;
 
     if (num > 1) {
-        int size = (printer->p->_mp_size + 1) * 8 + 1;
+        int size = printer->p->_mp_size * (sizeof(mp_limb_t) << 1) + 1;
         char **keys = malloc(sizeof(char*) * num);
         int i;
         int *sizes = malloc(sizeof(int) * num);
