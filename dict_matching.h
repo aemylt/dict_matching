@@ -155,7 +155,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
     int m_max = 0;
     int i;
     for (i = 0; i < num_patterns; i++) {
-        if (periods[i] > num_patterns) {
+        if ((periods[i] > num_patterns) && (m[i] > num_patterns << 1)) {
             if (m[i] > m_max) {
                 m_max = m[i] - num_patterns;
             }
@@ -172,7 +172,7 @@ dict_matcher dict_matching_build(char **P, int *m, int num_patterns, int n, int 
         char *first_letters = malloc(sizeof(char) * num_patterns);
         lookup_size = 0;
         for (j = 0; j < num_patterns; j++) {
-            if (periods[j] > num_patterns) {
+            if ((periods[j] > num_patterns) && (m[j] > num_patterns << 1)) {
                 first_letters[lookup_size] = P[j][0];
                 for (k = 0; k < lookup_size; k++) {
                     if (first_letters[k] == first_letters[lookup_size]) break;
