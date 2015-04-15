@@ -90,7 +90,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
                 fingerprint_assign(finger, row->last_print[i]);
                 row->count[i]++;
             } else {
-                fprintf(stderr, "Warning: Non-Periodic occurance at %d. Occurance ignored.\n", location);
+                fprintf(stderr, "Warning: Non-Periodic occurance at %d in index %d. Occurance ignored.\n", location, i);
             }
         }
     } else {
@@ -454,10 +454,10 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                                         fingerprint_assign(matcher->current, matcher->final.last_print[final]);
                                         matcher->final.count[final]++;
                                     } else {
-                                        fprintf(stderr, "Warning: Non-Periodic occurance at %d. Occurance ignored.\n", location);
+                                        fprintf(stderr, "Warning: Non-Periodic occurance at %d in index %d. Occurance ignored.\n", location, final);
                                     }
                                 } else {
-                                    fprintf(stderr, "Warning: Prefix has period less than number of patterns. Occurance at %d ignored.\n", location);
+                                    fprintf(stderr, "Warning: Prefix %d has period smaller than number of patterns. Occurance at %d ignored.\n", final, location);
                                 }
                             }
                         } else {
