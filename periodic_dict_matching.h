@@ -153,4 +153,13 @@ void periodic_dict_matching_free(periodic_dict_matcher state) {
     free(state);
 }
 
+int periodic_dict_matching_size(periodic_dict_matcher state) {
+    int size = sizeof(struct periodic_dict_matcher_t) + sizeof(int) * (4 * state->num_heads + state->num_tails) + sizeof(fingerprint) * (3 * state->num_heads) + hashlookup_size(state->head) + hashlookup_size(state->tail);
+    int i;
+    for (i = 0; i < state->num_heads; i++) {
+        size += fingerprint_size(state->first_print[i]) + fingerprint_size(state->last_print[i]) + fingerprint_size(state->period_f[i]);
+    }
+    return size;
+}
+
 #endif

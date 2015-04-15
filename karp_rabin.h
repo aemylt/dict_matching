@@ -105,6 +105,10 @@ void fingerprinter_free(fingerprinter printer) {
     free(printer);
 }
 
+int fingerprinter_size(fingerprinter printer) {
+    return sizeof(struct fingerprinter_t) + sizeof(mp_limb_t) * (printer->p->_mp_alloc + printer->r->_mp_alloc);
+}
+
 /*
     typedef struct fingerprint_t *fingerprint
     Structure to hold fingerprints.
@@ -253,7 +257,7 @@ void fingerprint_concat(fingerprinter printer, fingerprint u, fingerprint v, fin
         0 otherwise
 */
 int fingerprint_equals(fingerprint T_f, fingerprint P_f) {
-    return mpz_equals(T_f->finger, P_f->finger);
+    return (mpz_equals(T_f->finger, P_f->finger) && mpz_equals(T_f->r_k, P_f->r_k) && mpz_equals(T_f->r_mk, P_f->r_mk));
 }
 
 /*
@@ -282,6 +286,10 @@ void fingerprint_free(fingerprint finger) {
     mpz_clear(finger->r_k);
     mpz_clear(finger->r_mk);
     free(finger);
+}
+
+int fingerprint_size(fingerprint finger) {
+    return sizeof(struct fingerprint_t) + sizeof(mp_limb_t) * (finger->finger->_mp_alloc + finger->r_k->_mp_alloc + finger->r_mk->_mp_alloc);
 }
 
 #endif

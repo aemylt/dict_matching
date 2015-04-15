@@ -127,6 +127,7 @@ void verify_property_5_helper(node n, int black_count, int* path_black_count) {
 rbtree rbtree_create() {
     rbtree t = malloc(sizeof(struct rbtree_t));
     t->root = NULL;
+    t->size = 0;
     verify_properties(t);
     return t;
 }
@@ -196,6 +197,7 @@ void replace_node(rbtree t, node oldn, node newn) {
     }
 }
 void rbtree_insert(rbtree t, void* key, void* value, compare_func compare) {
+    t->size++;
     node inserted_node = new_node(key, value, RED, NULL, NULL);
     if (t->root == NULL) {
         t->root = inserted_node;
@@ -271,6 +273,7 @@ void insert_case5(rbtree t, node n) {
     }
 }
 void rbtree_delete(rbtree t, void* key, compare_func compare) {
+    t->size--;
     node child;
     node n = lookup_node(t, key, compare);
     if (n == NULL) return;  /* Key not found, do nothing */
@@ -389,6 +392,10 @@ void destroy_nodes(rbtree_node n) {
 void rbtree_destroy(rbtree t) {
     if (t->root != NULL) destroy_nodes(t->root);
     free(t);
+}
+
+int rbtree_size(rbtree t) {
+    return sizeof(struct rbtree_t) + sizeof(struct rbtree_t) + sizeof(struct rbtree_node_t) * t->size;
 }
 
 #endif

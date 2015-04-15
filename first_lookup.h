@@ -1,6 +1,8 @@
 #ifndef __FIRST_LOOKUP__
 #define __FIRST_LOOKUP__
 
+#include <cmph.h>
+
 typedef struct {
     cmph_t *hash;
     int num;
@@ -64,6 +66,14 @@ void firstlookup_free(first_lookup *lookup) {
         if (lookup->num > 1) cmph_destroy(lookup->hash);
         free(lookup->keys);
     }
+}
+
+int firstlookup_size(first_lookup lookup) {
+    int size = sizeof(char) * lookup.num;
+    if (lookup.num > 1) {
+        size += cmph_packed_size(lookup.hash);
+    }
+    return size;
 }
 
 #endif

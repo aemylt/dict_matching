@@ -556,4 +556,37 @@ void dict_matching_free(dict_matcher matcher) {
     free(matcher);
 }
 
+int dict_matching_size(dict_matcher matcher) {
+    int size = sizeof(struct dict_matcher_t) + sizeof(fingerprint) * (matcher->num_patterns << 1) + fingerprinter_size(matcher->printer) + fingerprint_size(matcher->T_j) + fingerprint_size(matcher->tmp) + fingerprint_size(matcher->T_f) + short_dict_matching_size(matcher->short_matcher) + periodic_dict_matching_size(matcher->periodic_matcher);
+    int i, j;
+    for (i = 0; i < matcher->num_patterns << 1; i++) {
+        size += fingerprint_size(matcher->T_prev[i]);
+    }
+    if (matcher->num_rows) {
+        size += fingerprint_size(matcher->current) + firstlookup_size(matcher->first_round);
+        size += sizeof(int) * (4 * matcher->final.num_progressions + 3 * matcher->final.num_prefixes);
+        size += sizeof(fingerprint) * (3 * matcher->final.num_progressions + matcher->final.num_prefixes) + sizeof(fingerprint*) * matcher->final.num_prefixes + sizeof(rbtree) * matcher->num_patterns;
+        for (i = 0; i < matcher->final.num_progressions; i++) {
+            size += fingerprint_size(matcher->final.first_print[i]) + fingerprint_size(matcher->final.last_print[i]) + fingerprint_size(matcher->final.period_f[i]);
+        }
+        for (i = 0; i < matcher->final.num_prefixes; i++) {
+            size += fingerprint_size(matcher->final.prefix[i]) + sizeof(fingerprint) * matcher->final.num_suffixes[i];
+            for (j = 0; j < matcher->final.num_suffixes[i]; j++) {
+                size += fingerprint_size(matcher->final.suffixes[i][j]);
+            }
+        }
+        for (i = 0; i < matcher->num_patterns; i++) {
+            size += rbtree_size(matcher->final.suffix_tree[i]);
+        }
+        size += sizeof(pattern_row) * matcher->num_rows;
+        for (i = 0; i < matcher->num_rows; i++) {
+            size += hashlookup_size(matcher->rows[i].lookup) + rbtree_size(matcher->rows[i].next_progression) + (sizeof(int) * 4 + sizeof(fingerprint) * 3) * matcher->rows[i].num_patterns;
+            for (j = 0; j < matcher->rows[i].num_patterns; j++) {
+                size += fingerprint_size(matcher->rows[i].first_print[j]) + fingerprint_size(matcher->rows[i].last_print[j]) + fingerprint_size(matcher->rows[i].period_f[j]);
+            }
+        }
+    }
+    return size;
+}
+
 #endif

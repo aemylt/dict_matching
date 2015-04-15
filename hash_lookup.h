@@ -46,13 +46,13 @@ hash_lookup hashlookup_build(fingerprint *prints, int *end_pattern, int num, fin
     lookup.num = num;
 
     if (num > 1) {
-        int size = printer->p->_mp_size * (sizeof(mp_limb_t) << 1) + 1;
+        int size = (printer->p->_mp_size * (sizeof(mp_limb_t) << 1) + 1) * 3;
         char **keys = malloc(sizeof(char*) * num);
         int i;
         int *sizes = malloc(sizeof(int) * num);
         for (i = 0; i < num; i++) {
             keys[i] = malloc(sizeof(char) * size);
-            sizes[i] = gmp_snprintf(keys[i], size, "%Zx", prints[i]->finger);
+            sizes[i] = gmp_snprintf(keys[i], size, "%Zx,%Zx,%Zx", prints[i]->finger, prints[i]->r_k, prints[i]->r_mk);
         }
         cmph_io_adapter_t *source = cmph_io_vector_adapter(keys, num);
         cmph_config_t *config = cmph_config_new(source);
@@ -116,7 +116,7 @@ int hashlookup_search(hash_lookup lookup, fingerprint key, int *match) {
         }
         return -1;
     }
-    int size = gmp_snprintf(lookup.last_key, lookup.key_size, "%Zx", key->finger);
+    int size = gmp_snprintf(lookup.last_key, lookup.key_size, "%Zx,%Zx,%Zx", key->finger, key->r_k, key->r_mk);
     int location =  cmph_search(lookup.hash, lookup.last_key, size);
     if ((location < lookup.num) && fingerprint_equals(lookup.keys[location], key)) {
         if (lookup.end_pattern && match) *match |= lookup.end_pattern[location];
@@ -146,6 +146,21 @@ void hashlookup_free(hash_lookup *lookup) {
         free(lookup->keys);
         if (lookup->end_pattern) free(lookup->end_pattern);
     }
+}
+
+int hashlookup_size(hash_lookup lookup) {
+    int size = sizeof(fingerprint) * lookup.num;
+    if (lookup.end_pattern) {
+        size += sizeof(int) * lookup.num;
+    }
+    if (lookup.num > 1) {
+        size += cmph_packed_size(lookup.hash) + sizeof(char) * lookup.key_size;
+    }
+    int i;
+    for (i = 0; i < lookup.num; i++) {
+        size += fingerprint_size(lookup.keys[i]);
+    }
+    return size;
 }
 
 #endif

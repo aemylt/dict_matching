@@ -134,4 +134,10 @@ void short_dict_matching_free(short_dict_matcher state) {
     free(state);
 }
 
+int short_dict_matching_size(short_dict_matcher state) {
+    int size = sizeof(struct short_dict_matcher_t);
+    if (state->num_prints) size += hashlookup_size(state->lookup);
+    return size;
+}
+
 #endif

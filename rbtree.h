@@ -28,6 +28,7 @@ typedef struct rbtree_node_t {
 
 typedef struct rbtree_t {
     rbtree_node root;
+    int size;
 } *rbtree;
 
 typedef int (*compare_func)(void* left, void* right);
