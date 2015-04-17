@@ -5,9 +5,8 @@
 #include "hash_lookup.h"
 
 typedef struct periodic_dict_matcher_t {
-    int num_heads, num_tails, k, *period, *count, *first_location, *last_location, *m;
+    int num_heads, num_tails, k, *period, *count, *last_location, *m;
     hash_lookup head, tail;
-    fingerprint *first_print;
     fingerprint *last_print;
     fingerprint *period_f;
 } *periodic_dict_matcher;
@@ -37,18 +36,14 @@ periodic_dict_matcher periodic_dict_matching_build(char **P, int *m, int *period
     if (num_heads) {
         state->period = malloc(sizeof(int) * num_heads);
         state->count = malloc(sizeof(int) * num_heads);
-        state->first_location = malloc(sizeof(int) * num_heads);
         state->last_location = malloc(sizeof(int) * num_heads);
-        state->first_print = malloc(sizeof(fingerprint) * num_heads);
         state->last_print = malloc(sizeof(fingerprint) * num_heads);
         state->period_f = malloc(sizeof(fingerprint) * num_heads);
         for (i = 0; i < num_heads; i++) {
             location = hashlookup_search(state->head, prints[i], NULL);
             state->period[location] = periods[i];
             state->count[location] = 0;
-            state->first_location[location] = 0;
             state->last_location[location] = 0;
-            state->first_print[location] = init_fingerprint();
             state->last_print[location] = init_fingerprint();
             state->period_f[location] = init_fingerprint();
             fingerprint_assign(period_prints[i], state->period_f[location]);
@@ -111,8 +106,6 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
             state->count[head_location] = 0;
         }
         if (!state->count[head_location]) {
-            state->first_location[head_location] = j;
-            fingerprint_assign(t_f, state->first_print[head_location]);
             state->last_location[head_location] = j;
             fingerprint_assign(t_f, state->last_print[head_location]);
             state->count[head_location] = state->k / state->period[head_pointer];
@@ -132,17 +125,14 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
 void periodic_dict_matching_free(periodic_dict_matcher state) {
     int i;
     for (i = 0; i < state->num_heads; i++) {
-        fingerprint_free(state->first_print[i]);
         fingerprint_free(state->last_print[i]);
         fingerprint_free(state->period_f[i]);
     }
     if (state->num_heads) {
-        free(state->first_print);
         free(state->last_print);
         free(state->period_f);
         free(state->period);
         free(state->count);
-        free(state->first_location);
         free(state->last_location);
         hashlookup_free(&state->head);
     }
@@ -154,10 +144,10 @@ void periodic_dict_matching_free(periodic_dict_matcher state) {
 }
 
 int periodic_dict_matching_size(periodic_dict_matcher state) {
-    int size = sizeof(struct periodic_dict_matcher_t) + sizeof(int) * (4 * state->num_heads + state->num_tails) + sizeof(fingerprint) * (3 * state->num_heads) + hashlookup_size(state->head) + hashlookup_size(state->tail);
+    int size = sizeof(struct periodic_dict_matcher_t) + sizeof(int) * (3 * state->num_heads + state->num_tails) + sizeof(fingerprint) * (2 * state->num_heads) + hashlookup_size(state->head) + hashlookup_size(state->tail);
     int i;
     for (i = 0; i < state->num_heads; i++) {
-        size += fingerprint_size(state->first_print[i]) + fingerprint_size(state->last_print[i]) + fingerprint_size(state->period_f[i]);
+        size += fingerprint_size(state->last_print[i]) + fingerprint_size(state->period_f[i]);
     }
     return size;
 }
