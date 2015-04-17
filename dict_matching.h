@@ -74,7 +74,7 @@ int shift_row(fingerprinter printer, pattern_row *row, fingerprint finger, int j
     return 0;
 }
 
-void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, int location, int i, fingerprint tmp) {
+void add_occurrence(fingerprinter printer, pattern_row *row, fingerprint finger, int location, int i, fingerprint tmp) {
     if (row->count[i]) {
         if (row->count[i] == 1) {
             row->period[i] = location - row->first_location[i];
@@ -90,7 +90,7 @@ void add_occurance(fingerprinter printer, pattern_row *row, fingerprint finger, 
                 fingerprint_assign(finger, row->last_print[i]);
                 row->count[i]++;
             } else {
-                fprintf(stderr, "Warning: Non-Periodic occurance at %d in index %d. Occurance ignored.\n", location, i);
+                fprintf(stderr, "Warning: Non-Periodic occurrence at %d in index %d. Occurrence ignored.\n", location, i);
             }
         }
     } else {
@@ -425,16 +425,16 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         rbtree_destroy(matcher->final.suffix_tree[j % matcher->num_patterns]);
         matcher->final.suffix_tree[j % matcher->num_patterns] = rbtree_create();
 
-        int occurance, match;
+        int occurrence, match;
         for (i = matcher->num_rows - 1; i >= 0; i--) {
-            occurance = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
-            if (occurance) {
+            occurrence = shift_row(matcher->printer, &matcher->rows[i], matcher->current, j, matcher->tmp);
+            if (occurrence) {
                 fingerprint_suffix(matcher->printer, matcher->T_f, matcher->current, matcher->tmp);
                 int final = 0;
                 match = hashlookup_search(matcher->rows[i].lookup, matcher->tmp, &final);
                 if (match != -1) {
                     if (i < matcher->num_rows - 1) {
-                        add_occurance(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
+                        add_occurrence(matcher->printer, &matcher->rows[i + 1], matcher->current, j, match, matcher->tmp);
                     }
                     if (final != -1) {
                         int location = j - (matcher->rows[i].row_size << 1);
@@ -454,10 +454,10 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
                                         fingerprint_assign(matcher->current, matcher->final.last_print[final]);
                                         matcher->final.count[final]++;
                                     } else {
-                                        fprintf(stderr, "Warning: Non-Periodic occurance at %d in index %d. Occurance ignored.\n", location, final);
+                                        fprintf(stderr, "Warning: Non-Periodic occurrence at %d in index %d. Occurrence ignored.\n", location, final);
                                     }
                                 } else {
-                                    fprintf(stderr, "Warning: Prefix %d has period smaller than number of patterns. Occurance at %d ignored.\n", final, location);
+                                    fprintf(stderr, "Warning: Prefix %d has period smaller than number of patterns. Occurrence at %d ignored.\n", final, location);
                                 }
                             }
                         } else {
@@ -474,7 +474,7 @@ int dict_matching_stream(dict_matcher matcher, char T_j, int j) {
         int index = j % (matcher->num_patterns << 1);
         if (first_round != -1) {
             int prev_index = (index) ? index - 1 : (matcher->num_patterns << 1) - 1;
-            add_occurance(matcher->printer, &matcher->rows[0], matcher->T_prev[prev_index], j, first_round, matcher->tmp);
+            add_occurrence(matcher->printer, &matcher->rows[0], matcher->T_prev[prev_index], j, first_round, matcher->tmp);
         }
     }
 
