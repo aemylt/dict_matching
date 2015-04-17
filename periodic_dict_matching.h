@@ -102,7 +102,7 @@ int periodic_dict_matching_stream(periodic_dict_matcher state, fingerprinter pri
             state->count[head_location]++;
             state->last_location[head_location] = j;
             fingerprint_assign(t_f, state->last_print[head_location]);
-        } else {
+        } else if (period > state->period[head_location]) {
             state->count[head_location] = 0;
         }
         if (!state->count[head_location]) {
